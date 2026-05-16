@@ -19,9 +19,6 @@ public static class LightChasePrototypeBuilder
     private const string GridWhiteMaterialPath = "Assets/StarterAssets/Environment/Art/Materials/GridWhite_01_Mat.mat";
     private const string GridOrangeMaterialPath = "Assets/StarterAssets/Environment/Art/Materials/GridOrange_01_Mat.mat";
     private const string GridBlueMaterialPath = "Assets/StarterAssets/Environment/Art/Materials/GridBlue_01_Mat.mat";
-    private static readonly Color NightFogColor = new(0.02f, 0.03f, 0.06f, 1f);
-    private static readonly Color NightAmbientColor = new(0.015f, 0.02f, 0.035f, 1f);
-
     [MenuItem("Tools/Prototype/Build Light Chase Level")]
     public static void BuildLevel()
     {
@@ -42,6 +39,22 @@ public static class LightChasePrototypeBuilder
         EditorSceneManager.SaveScene(scene);
         Selection.activeGameObject = playerLightState.gameObject;
         Debug.Log($"Light Chase prototype listo en {PrototypeScenePath}");
+    }
+
+    [MenuItem("Tools/Prototype/Apply Suspense Atmosphere")]
+    public static void ApplySuspenseAtmosphere()
+    {
+        var scene = SceneManager.GetActiveScene();
+        if (!scene.IsValid() || !scene.isLoaded)
+        {
+            Debug.LogWarning("No hay una escena cargada para aplicar la atmosfera.");
+            return;
+        }
+
+        ConfigureAtmosphere();
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log($"Atmosfera de suspenso aplicada en {scene.path}");
     }
 
     private static void EnsurePrototypeSceneExists()
@@ -68,81 +81,26 @@ public static class LightChasePrototypeBuilder
 
         var player = PrefabUtility.InstantiatePrefab(playerPrefab) as GameObject;
         PrefabUtility.InstantiatePrefab(cameraPrefab);
-        player.transform.position = new Vector3(0f, 0.15f, -6f);
+        player.transform.position = PlayerAvatarSetup.DefaultSpawnPosition;
         return player;
     }
 
     private static PlayerLightState ConfigurePlayer(GameObject player)
     {
-        var state = GetOrAddComponent<PlayerLightState>(player);
-
-        var glowLightTransform = player.transform.Find("GlowLight");
-        if (glowLightTransform == null)
-        {
-            var lightObject = new GameObject("GlowLight");
-            lightObject.transform.SetParent(player.transform);
-            lightObject.transform.localPosition = new Vector3(0f, 1.35f, 0f);
-            glowLightTransform = lightObject.transform;
-        }
-
-        var glowLight = GetOrAddComponent<Light>(glowLightTransform.gameObject);
-        glowLight.type = LightType.Point;
-        glowLight.color = new Color(0.6f, 0.8f, 1f);
-        glowLight.intensity = 0.45f;
-        glowLight.range = 3.25f;
-        glowLight.shadows = LightShadows.Soft;
-
-        var trailTransform = player.transform.Find("GlowTrail");
-        if (trailTransform == null)
-        {
-            var trailObject = new GameObject("GlowTrail");
-            trailObject.transform.SetParent(player.transform);
-            trailObject.transform.localPosition = new Vector3(0f, 0.2f, -0.15f);
-            trailTransform = trailObject.transform;
-        }
-
-        var trailRenderer = GetOrAddComponent<TrailRenderer>(trailTransform.gameObject);
-        trailRenderer.alignment = LineAlignment.View;
-        trailRenderer.time = 0.3f;
-        trailRenderer.minVertexDistance = 0.05f;
-        trailRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        trailRenderer.receiveShadows = false;
-        trailRenderer.material = CreateUnlitMaterial("PlayerGlowTrail", new Color(0.65f, 0.85f, 1f));
-
-        state.ConfigureVisuals(
-            glowLight,
-            trailRenderer,
-            BuildGradient(new Color(0.55f, 0.8f, 1f), new Color(0.25f, 0.35f, 0.8f, 0f)),
-            BuildGradient(new Color(1f, 0.95f, 0.55f), new Color(1f, 0.45f, 0.15f, 0f)));
-
-        return state;
+        return PlayerAvatarSetup.EnsureGameplayPresentation(player);
     }
 
     private static void ConfigureAtmosphere()
     {
-        RenderSettings.skybox = null;
-        RenderSettings.ambientLight = NightAmbientColor;
-        RenderSettings.subtractiveShadowColor = Color.black;
-        RenderSettings.reflectionIntensity = 0.1f;
-        RenderSettings.fog = true;
-        RenderSettings.fogColor = NightFogColor;
-        RenderSettings.fogMode = FogMode.ExponentialSquared;
-        RenderSettings.fogDensity = 0.035f;
+        LightChaseAtmosphere.ApplyRenderSettings();
 
         var directionalLight = GameObject.Find("Directional Light");
         if (directionalLight != null && directionalLight.TryGetComponent<Light>(out var mainLight))
         {
-            mainLight.color = new Color(0.16f, 0.2f, 0.28f);
-            mainLight.intensity = 0.035f;
-            mainLight.shadowStrength = 1f;
+            LightChaseAtmosphere.ApplyToDirectionalLight(mainLight);
         }
 
-        var mainCamera = Camera.main;
-        if (mainCamera != null)
-        {
-            mainCamera.clearFlags = CameraClearFlags.SolidColor;
-            mainCamera.backgroundColor = new Color(0.005f, 0.008f, 0.015f, 1f);
-        }
+        LightChaseAtmosphere.ApplyToSceneCameras();
 
         foreach (var volume in Object.FindObjectsByType<Volume>())
         {
@@ -276,32 +234,7 @@ public static class LightChasePrototypeBuilder
 
     private static void ConfigureHud(PrototypeLevelManager levelManager)
     {
-        var canvasObject = GameObject.Find("GameplayHUD");
-        if (canvasObject == null)
-        {
-            canvasObject = new GameObject("GameplayHUD");
-        }
-
-        var canvas = GetOrAddComponent<Canvas>(canvasObject);
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        GetOrAddComponent<CanvasScaler>(canvasObject).uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        GetOrAddComponent<GraphicRaycaster>(canvasObject);
-
-        var hudController = GetOrAddComponent<LightChasePrototype.UI.GameHudController>(canvasObject);
-        var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-
-        var livesText = FindOrCreateHudText(canvas.transform, "LivesText", font, new Vector2(20f, -20f), TextAnchor.UpperLeft, 30);
-        var scoreText = FindOrCreateHudText(canvas.transform, "ScoreText", font, new Vector2(20f, -58f), TextAnchor.UpperLeft, 30);
-        var timerText = FindOrCreateHudText(canvas.transform, "TimerText", font, new Vector2(-20f, -20f), TextAnchor.UpperRight, 30);
-        var statusText = FindOrCreateHudText(canvas.transform, "StatusText", font, new Vector2(0f, 40f), TextAnchor.LowerCenter, 28);
-
-        var statusRect = statusText.rectTransform;
-        statusRect.anchorMin = new Vector2(0.5f, 0f);
-        statusRect.anchorMax = new Vector2(0.5f, 0f);
-        statusRect.pivot = new Vector2(0.5f, 0f);
-        statusRect.sizeDelta = new Vector2(900f, 70f);
-
-        hudController.Configure(levelManager, livesText, scoreText, timerText, statusText);
+        LightChasePrototype.UI.GameHudController.EnsureHudExists(levelManager);
     }
 
     private static void ConfigureNavigation()
@@ -317,33 +250,6 @@ public static class LightChasePrototypeBuilder
         navMeshSurface.useGeometry = NavMeshCollectGeometry.RenderMeshes;
         navMeshSurface.layerMask = ~0;
         navMeshSurface.BuildNavMesh();
-    }
-
-    private static Gradient BuildGradient(Color startColor, Color endColor)
-    {
-        var gradient = new Gradient();
-        gradient.SetKeys(
-            new[]
-            {
-                new GradientColorKey(startColor, 0f),
-                new GradientColorKey(Color.Lerp(startColor, endColor, 0.5f), 0.55f),
-                new GradientColorKey(endColor, 1f)
-            },
-            new[]
-            {
-                new GradientAlphaKey(startColor.a, 0f),
-                new GradientAlphaKey(0.45f, 0.6f),
-                new GradientAlphaKey(endColor.a, 1f)
-            });
-        return gradient;
-    }
-
-    private static Material CreateUnlitMaterial(string materialName, Color color)
-    {
-        var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-        var material = new Material(shader) { name = materialName, color = color };
-        material.EnableKeyword("_EMISSION");
-        return material;
     }
 
     private static Material CreateEmissiveMaterial(string materialName, Material fallbackMaterial, Color baseColor, Color emissionColor)

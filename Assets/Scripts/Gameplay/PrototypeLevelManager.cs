@@ -24,6 +24,9 @@ namespace LightChasePrototype
 
         private void Awake()
         {
+            PlayerAvatarSetup.EnsureSelectedAvatarInScene();
+            LightChaseAtmosphere.ApplyRenderSettings();
+            LightChaseAtmosphere.ApplyToSceneCameras();
             GameHudController.EnsureHudExists(this);
             MainMenuController.EnsureMenuExists();
             ResetRun();

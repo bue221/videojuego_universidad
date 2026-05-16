@@ -1,7 +1,9 @@
+using LightChasePrototype;
 using LightChasePrototype.UI;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 public class MainMenuControllerTests
 {
@@ -80,6 +82,15 @@ public class MainMenuControllerTests
     }
 
     [Test]
+    public void SelectAvatar_UpdatesPersistentSelection()
+    {
+        _controller.SelectAvatar(PlayerAvatarSelection.CapsuleAvatarId);
+
+        Assert.That(_controller.SelectedAvatarId, Is.EqualTo(PlayerAvatarSelection.CapsuleAvatarId));
+        Assert.That(PlayerAvatarSelection.SelectedAvatarId, Is.EqualTo(PlayerAvatarSelection.CapsuleAvatarId));
+    }
+
+    [Test]
     public void PlayGame_InGameplayScene_HidesMenuWithoutLoadingScene()
     {
         string loadedScene = null;
@@ -117,5 +128,24 @@ public class MainMenuControllerTests
         Assert.That(createdMenu, Is.Not.Null);
         Assert.That(createdMenu.MenuVisible, Is.True);
         Assert.That(Time.timeScale, Is.EqualTo(0f));
+    }
+
+    [Test]
+    public void EnsureMenuExists_BuildsInstructionsThatExplainControlsAndEnemy()
+    {
+        Object.DestroyImmediate(_root);
+        Object.DestroyImmediate(_menuCanvas);
+        _root = null;
+        _menuCanvas = null;
+
+        var createdMenu = MainMenuController.EnsureMenuExists();
+        createdMenu.ShowInstructions();
+
+        var instructionsBody = GameObject.Find("InstructionsBody").GetComponent<Text>();
+
+        Assert.That(instructionsBody.text, Does.Contain("OBJETIVO"));
+        Assert.That(instructionsBody.text, Does.Contain("WASD"));
+        Assert.That(instructionsBody.text, Does.Contain("Shift izquierdo"));
+        Assert.That(instructionsBody.text, Does.Contain("ENEMIGO"));
     }
 }

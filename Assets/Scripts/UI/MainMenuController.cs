@@ -1,8 +1,12 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace LightChasePrototype.UI
 {
@@ -12,15 +16,18 @@ namespace LightChasePrototype.UI
         [SerializeField] private string gameplaySceneName = "LightChasePrototype";
         [SerializeField] private CanvasGroup menuCanvasGroup;
         [SerializeField] private bool pauseGameplayWhileVisible = true;
+        [SerializeField] private Text avatarDescriptionText;
 
         private Action<string> _sceneLoader;
         private Action _quitAction;
         private Func<string> _activeSceneNameProvider;
         private MonoBehaviour _starterAssetsInputs;
+        private readonly List<AvatarButtonBinding> _avatarButtons = new();
 
         public bool InstructionsVisible => instructionsPanel != null && instructionsPanel.activeSelf;
         public string GameplaySceneName => gameplaySceneName;
         public bool MenuVisible => menuCanvasGroup != null && menuCanvasGroup.gameObject.activeSelf;
+        public string SelectedAvatarId => PlayerAvatarSelection.SelectedAvatarId;
 
         public static MainMenuController EnsureMenuExists(string assignedGameplaySceneName = "LightChasePrototype")
         {
@@ -66,11 +73,14 @@ namespace LightChasePrototype.UI
             CreateText("Subtitle", root.transform, "La luz te delata. Entre mas estrellas recojas, mas facil te cazan.", 24, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(0.78f, 0.86f, 0.96f));
             SetAnchoredRect(root.transform.Find("Subtitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.55f), new Vector2(1100f, 60f));
 
+            var avatarSection = CreateAvatarSelectionPanel(root.transform);
+            SetAnchoredRect(avatarSection.GetComponent<RectTransform>(), new Vector2(0.5f, 0.41f), new Vector2(980f, 170f));
+
             var buttonStack = new GameObject("ButtonStack", typeof(RectTransform), typeof(VerticalLayoutGroup));
             buttonStack.transform.SetParent(root.transform, false);
             var stackRect = buttonStack.GetComponent<RectTransform>();
-            stackRect.anchorMin = new Vector2(0.5f, 0.25f);
-            stackRect.anchorMax = new Vector2(0.5f, 0.25f);
+            stackRect.anchorMin = new Vector2(0.5f, 0.2f);
+            stackRect.anchorMax = new Vector2(0.5f, 0.2f);
             stackRect.sizeDelta = new Vector2(420f, 280f);
 
             var layout = buttonStack.GetComponent<VerticalLayoutGroup>();
@@ -86,12 +96,16 @@ namespace LightChasePrototype.UI
             controller.instructionsPanel = instructions;
             controller.gameplaySceneName = assignedGameplaySceneName;
             controller.menuCanvasGroup = menuGroup;
+            controller.avatarDescriptionText = avatarSection.transform.Find("AvatarDescription").GetComponent<Text>();
+            controller.RegisterAvatarButton(PlayerAvatarSelection.ArmatureAvatarId, avatarSection.transform.Find("AvatarButtonRow/HumanoButton").GetComponent<Button>());
+            controller.RegisterAvatarButton(PlayerAvatarSelection.CapsuleAvatarId, avatarSection.transform.Find("AvatarButtonRow/CapsulaButton").GetComponent<Button>());
 
             instructions.transform.Find("CloseButton").GetComponent<Button>().onClick.AddListener(controller.HideInstructions);
             CreateMenuButton(buttonStack.transform, "Jugar", new Color(0.12f, 0.45f, 0.75f), controller.PlayGame);
             CreateMenuButton(buttonStack.transform, "Instrucciones", new Color(0.14f, 0.34f, 0.58f), controller.ShowInstructions);
             CreateMenuButton(buttonStack.transform, "Salir", new Color(0.28f, 0.16f, 0.24f), controller.QuitGame);
 
+            controller.RefreshAvatarSelectionUi();
             controller.ShowMenu();
             return controller;
         }
@@ -101,6 +115,7 @@ namespace LightChasePrototype.UI
             instructionsPanel = assignedInstructionsPanel;
             gameplaySceneName = assignedGameplaySceneName;
             HideInstructions();
+            RefreshAvatarSelectionUi();
         }
 
         public void ConfigureActionsForTests(Action<string> sceneLoader, Action quitAction, Func<string> activeSceneNameProvider = null)
@@ -127,6 +142,7 @@ namespace LightChasePrototype.UI
         {
             if (GetActiveSceneName() == gameplaySceneName)
             {
+                PlayerAvatarSetup.EnsureSelectedAvatarInScene();
                 HideMenu();
                 return;
             }
@@ -163,11 +179,17 @@ namespace LightChasePrototype.UI
                 return;
             }
 
+#if UNITY_EDITOR
+            EditorApplication.isPlaying = false;
+#else
             Application.Quit();
+#endif
         }
 
         public void ShowMenu()
         {
+            RefreshAvatarSelectionUi();
+
             if (menuCanvasGroup != null)
             {
                 menuCanvasGroup.gameObject.SetActive(true);
@@ -256,7 +278,7 @@ namespace LightChasePrototype.UI
 
         private static MonoBehaviour FindStarterAssetsInputs()
         {
-            foreach (var behaviour in UnityEngine.Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
+            foreach (var behaviour in UnityEngine.Object.FindObjectsByType<MonoBehaviour>())
             {
                 if (behaviour != null && behaviour.GetType().FullName == "StarterAssets.StarterAssetsInputs")
                 {
@@ -284,32 +306,153 @@ namespace LightChasePrototype.UI
             }
         }
 
+        public void SelectAvatar(string avatarId)
+        {
+            PlayerAvatarSelection.SelectAvatar(avatarId);
+            RefreshAvatarSelectionUi();
+        }
+
+        private void RegisterAvatarButton(string avatarId, Button button)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            button.onClick.AddListener(() => SelectAvatar(avatarId));
+            _avatarButtons.Add(new AvatarButtonBinding(avatarId, button));
+        }
+
+        private void RefreshAvatarSelectionUi()
+        {
+            var selectedAvatar = PlayerAvatarSelection.SelectedAvatar;
+
+            if (avatarDescriptionText != null)
+            {
+                avatarDescriptionText.text = $"{selectedAvatar.DisplayName}: {selectedAvatar.Description}";
+            }
+
+            foreach (var binding in _avatarButtons)
+            {
+                if (binding.Button == null)
+                {
+                    continue;
+                }
+
+                var colors = binding.Button.colors;
+                var isSelected = binding.AvatarId == selectedAvatar.Id;
+                var baseColor = isSelected
+                    ? new Color(0.82f, 0.64f, 0.2f, 1f)
+                    : new Color(0.16f, 0.24f, 0.38f, 1f);
+
+                colors.normalColor = baseColor;
+                colors.highlightedColor = baseColor * 1.1f;
+                colors.pressedColor = baseColor * 0.9f;
+                colors.selectedColor = baseColor * 1.05f;
+                colors.disabledColor = new Color(0.24f, 0.24f, 0.24f, 0.75f);
+                binding.Button.colors = colors;
+
+                var image = binding.Button.GetComponent<Image>();
+                if (image != null)
+                {
+                    image.color = baseColor;
+                }
+
+                var label = binding.Button.transform.Find("Label")?.GetComponent<Text>();
+                if (label != null)
+                {
+                    label.text = isSelected
+                        ? $"{PlayerAvatarSelection.GetAvatar(binding.AvatarId).DisplayName.ToUpperInvariant()}  ACTIVO"
+                        : PlayerAvatarSelection.GetAvatar(binding.AvatarId).DisplayName.ToUpperInvariant();
+                }
+            }
+        }
+
+        private static GameObject CreateAvatarSelectionPanel(Transform parent)
+        {
+            var panel = CreatePanel("AvatarSelectionPanel", parent, new Color(0.03f, 0.06f, 0.12f, 0.8f));
+
+            CreateText("AvatarTitle", panel.transform, "ELIGE TU AVATAR", 28, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.95f, 0.96f, 1f));
+            var titleRect = panel.transform.Find("AvatarTitle").GetComponent<RectTransform>();
+            titleRect.anchorMin = new Vector2(0.5f, 0.78f);
+            titleRect.anchorMax = new Vector2(0.5f, 0.78f);
+            titleRect.sizeDelta = new Vector2(520f, 40f);
+            titleRect.anchoredPosition = Vector2.zero;
+
+            var buttonRow = new GameObject("AvatarButtonRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            buttonRow.transform.SetParent(panel.transform, false);
+            var rowRect = buttonRow.GetComponent<RectTransform>();
+            rowRect.anchorMin = new Vector2(0.5f, 0.5f);
+            rowRect.anchorMax = new Vector2(0.5f, 0.5f);
+            rowRect.sizeDelta = new Vector2(760f, 72f);
+            rowRect.anchoredPosition = new Vector2(0f, 6f);
+
+            var rowLayout = buttonRow.GetComponent<HorizontalLayoutGroup>();
+            rowLayout.childAlignment = TextAnchor.MiddleCenter;
+            rowLayout.spacing = 20f;
+            rowLayout.childControlWidth = false;
+            rowLayout.childControlHeight = false;
+            rowLayout.childForceExpandWidth = false;
+            rowLayout.childForceExpandHeight = false;
+
+            var humanoButton = CreateMenuButton(buttonRow.transform, "Humano", new Color(0.16f, 0.24f, 0.38f), null);
+            humanoButton.name = "HumanoButton";
+            humanoButton.GetComponent<RectTransform>().sizeDelta = new Vector2(320f, 68f);
+
+            var capsulaButton = CreateMenuButton(buttonRow.transform, "Capsula", new Color(0.16f, 0.24f, 0.38f), null);
+            capsulaButton.name = "CapsulaButton";
+            capsulaButton.GetComponent<RectTransform>().sizeDelta = new Vector2(320f, 68f);
+
+            CreateText("AvatarDescription", panel.transform, string.Empty, 20, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(0.8f, 0.88f, 0.97f));
+            var descriptionRect = panel.transform.Find("AvatarDescription").GetComponent<RectTransform>();
+            descriptionRect.anchorMin = new Vector2(0.5f, 0.2f);
+            descriptionRect.anchorMax = new Vector2(0.5f, 0.2f);
+            descriptionRect.sizeDelta = new Vector2(860f, 40f);
+            descriptionRect.anchoredPosition = Vector2.zero;
+
+            return panel;
+        }
+
         private static GameObject CreateInstructionsPanel(Transform parent)
         {
             var panel = CreatePanel("InstructionsPanel", parent, new Color(0.01f, 0.02f, 0.05f, 0.96f));
-            SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(980f, 520f));
+            SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(1140f, 680f));
 
-            CreateText("InstructionsTitle", panel.transform, "INSTRUCCIONES", 38, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.95f, 0.72f));
+            CreateText("InstructionsTitle", panel.transform, "COMO JUGAR", 38, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.95f, 0.72f));
             SetAnchoredRect(panel.transform.Find("InstructionsTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.86f), new Vector2(600f, 60f));
 
             CreateText(
                 "InstructionsBody",
                 panel.transform,
-                "Recoge estrellas para desbloquear la salida.\nCada estrella aumenta tu brillo.\nEntre mas brilles, desde mas lejos te detecta el enemigo.\nMuevete, decide tu ruta y no te dejes atrapar.",
-                26,
+                "OBJETIVO\n" +
+                "Recoge 5 de las 7 estrellas para activar el portal de salida y escapar.\n\n" +
+                "CONTROLES\n" +
+                "WASD  Moverte por el nivel\n" +
+                "Mouse  Girar la camara\n" +
+                "Shift izquierdo  Correr\n" +
+                "Espacio  Saltar\n\n" +
+                "COMO FUNCIONA EL RIESGO\n" +
+                "Cada estrella aumenta tu brillo, hace mas visible tu rastro y permite que el enemigo te detecte desde mas lejos.\n" +
+                "Recoger rapido te acerca a la meta, pero tambien te expone mas.\n\n" +
+                "QUE HACE EL ENEMIGO\n" +
+                "El perseguidor reacciona a tu firma de luz. Si estas muy brillante, te encuentra antes, acelera durante la persecucion y te quita vidas al alcanzarte.\n" +
+                "Si oyes o ves que entra en alerta, cambia de ruta o corre al portal si ya esta activo.\n\n" +
+                "CONDICIONES DE PARTIDA\n" +
+                "Tienes 3 vidas y 180 segundos. Si te quedas sin tiempo o sin vidas, pierdes la partida.",
+                22,
                 FontStyle.Normal,
-                TextAnchor.UpperCenter,
+                TextAnchor.UpperLeft,
                 new Color(0.82f, 0.9f, 1f));
 
             var bodyRect = panel.transform.Find("InstructionsBody").GetComponent<RectTransform>();
             bodyRect.anchorMin = new Vector2(0.5f, 0.5f);
             bodyRect.anchorMax = new Vector2(0.5f, 0.5f);
-            bodyRect.sizeDelta = new Vector2(760f, 210f);
-            bodyRect.anchoredPosition = new Vector2(0f, 10f);
+            bodyRect.sizeDelta = new Vector2(920f, 420f);
+            bodyRect.anchoredPosition = new Vector2(0f, -10f);
 
             var closeButton = CreateMenuButton(panel.transform, "Cerrar", new Color(0.16f, 0.33f, 0.5f), null);
             closeButton.name = "CloseButton";
-            SetAnchoredRect(closeButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.14f), new Vector2(280f, 64f));
+            SetAnchoredRect(closeButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.11f), new Vector2(280f, 64f));
             panel.SetActive(false);
             return panel;
         }
@@ -383,6 +526,18 @@ namespace LightChasePrototype.UI
             rectTransform.pivot = new Vector2(0.5f, 0.5f);
             rectTransform.sizeDelta = size;
             rectTransform.anchoredPosition = Vector2.zero;
+        }
+
+        private readonly struct AvatarButtonBinding
+        {
+            public AvatarButtonBinding(string avatarId, Button button)
+            {
+                AvatarId = avatarId;
+                Button = button;
+            }
+
+            public string AvatarId { get; }
+            public Button Button { get; }
         }
     }
 }
