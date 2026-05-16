@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public static class LightChasePrototypeBuilder
 {
@@ -30,10 +31,11 @@ public static class LightChasePrototypeBuilder
         var player = FindOrCreatePlayer();
         var playerLightState = ConfigurePlayer(player);
         ConfigureAtmosphere();
-        ConfigureLevelManager();
+        var levelManager = ConfigureLevelManager();
         ConfigureEnemy(player.transform);
         ConfigureStars();
         ConfigureExit();
+        ConfigureHud(levelManager);
         ConfigureNavigation();
 
         EditorSceneManager.MarkSceneDirty(scene);
@@ -142,13 +144,13 @@ public static class LightChasePrototypeBuilder
             mainCamera.backgroundColor = new Color(0.005f, 0.008f, 0.015f, 1f);
         }
 
-        foreach (var volume in Object.FindObjectsByType<Volume>(FindObjectsSortMode.None))
+        foreach (var volume in Object.FindObjectsByType<Volume>())
         {
             volume.weight = 0f;
         }
     }
 
-    private static void ConfigureLevelManager()
+    private static PrototypeLevelManager ConfigureLevelManager()
     {
         var manager = Object.FindAnyObjectByType<PrototypeLevelManager>();
         if (manager == null)
@@ -159,7 +161,11 @@ public static class LightChasePrototypeBuilder
 
         var serializedObject = new SerializedObject(manager);
         serializedObject.FindProperty("starsRequiredToExit").intValue = 5;
+        serializedObject.FindProperty("startingLives").intValue = 3;
+        serializedObject.FindProperty("scorePerStar").intValue = 100;
+        serializedObject.FindProperty("levelTimeSeconds").floatValue = 180f;
         serializedObject.ApplyModifiedPropertiesWithoutUndo();
+        return manager;
     }
 
     private static void ConfigureEnemy(Transform playerTransform)
@@ -268,6 +274,36 @@ public static class LightChasePrototypeBuilder
         }
     }
 
+    private static void ConfigureHud(PrototypeLevelManager levelManager)
+    {
+        var canvasObject = GameObject.Find("GameplayHUD");
+        if (canvasObject == null)
+        {
+            canvasObject = new GameObject("GameplayHUD");
+        }
+
+        var canvas = GetOrAddComponent<Canvas>(canvasObject);
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        GetOrAddComponent<CanvasScaler>(canvasObject).uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        GetOrAddComponent<GraphicRaycaster>(canvasObject);
+
+        var hudController = GetOrAddComponent<LightChasePrototype.UI.GameHudController>(canvasObject);
+        var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+        var livesText = FindOrCreateHudText(canvas.transform, "LivesText", font, new Vector2(20f, -20f), TextAnchor.UpperLeft, 30);
+        var scoreText = FindOrCreateHudText(canvas.transform, "ScoreText", font, new Vector2(20f, -58f), TextAnchor.UpperLeft, 30);
+        var timerText = FindOrCreateHudText(canvas.transform, "TimerText", font, new Vector2(-20f, -20f), TextAnchor.UpperRight, 30);
+        var statusText = FindOrCreateHudText(canvas.transform, "StatusText", font, new Vector2(0f, 40f), TextAnchor.LowerCenter, 28);
+
+        var statusRect = statusText.rectTransform;
+        statusRect.anchorMin = new Vector2(0.5f, 0f);
+        statusRect.anchorMax = new Vector2(0.5f, 0f);
+        statusRect.pivot = new Vector2(0.5f, 0f);
+        statusRect.sizeDelta = new Vector2(900f, 70f);
+
+        hudController.Configure(levelManager, livesText, scoreText, timerText, statusText);
+    }
+
     private static void ConfigureNavigation()
     {
         var navigationObject = GameObject.Find("Navigation");
@@ -335,6 +371,53 @@ public static class LightChasePrototypeBuilder
         }
 
         return material;
+    }
+
+    private static Text FindOrCreateHudText(Transform parent, string objectName, Font font, Vector2 anchoredPosition, TextAnchor alignment, int fontSize)
+    {
+        var existingTransform = parent.Find(objectName);
+        GameObject textObject;
+        if (existingTransform == null)
+        {
+            textObject = new GameObject(objectName);
+            textObject.transform.SetParent(parent);
+        }
+        else
+        {
+            textObject = existingTransform.gameObject;
+        }
+
+        var rectTransform = GetOrAddComponent<RectTransform>(textObject);
+        var text = GetOrAddComponent<Text>(textObject);
+        text.font = font;
+        text.fontSize = fontSize;
+        text.alignment = alignment;
+        text.color = new Color(0.95f, 0.95f, 1f, 0.98f);
+        text.horizontalOverflow = HorizontalWrapMode.Overflow;
+        text.verticalOverflow = VerticalWrapMode.Overflow;
+
+        if (alignment == TextAnchor.UpperRight)
+        {
+            rectTransform.anchorMin = new Vector2(1f, 1f);
+            rectTransform.anchorMax = new Vector2(1f, 1f);
+            rectTransform.pivot = new Vector2(1f, 1f);
+        }
+        else if (alignment == TextAnchor.LowerCenter)
+        {
+            rectTransform.anchorMin = new Vector2(0.5f, 0f);
+            rectTransform.anchorMax = new Vector2(0.5f, 0f);
+            rectTransform.pivot = new Vector2(0.5f, 0f);
+        }
+        else
+        {
+            rectTransform.anchorMin = new Vector2(0f, 1f);
+            rectTransform.anchorMax = new Vector2(0f, 1f);
+            rectTransform.pivot = new Vector2(0f, 1f);
+        }
+
+        rectTransform.anchoredPosition = anchoredPosition;
+        rectTransform.sizeDelta = new Vector2(450f, 48f);
+        return text;
     }
 
     private static T GetOrAddComponent<T>(GameObject gameObject) where T : Component

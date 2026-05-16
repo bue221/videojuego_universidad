@@ -53,7 +53,24 @@ public static class LightChaseMainMenuBuilder
     {
         var eventSystem = new GameObject("EventSystem");
         eventSystem.AddComponent<EventSystem>();
-        eventSystem.AddComponent<StandaloneInputModule>();
+        if (!TryAddInputSystemUiModule(eventSystem))
+        {
+            eventSystem.AddComponent<StandaloneInputModule>();
+        }
+    }
+
+    private static bool TryAddInputSystemUiModule(GameObject eventSystem)
+    {
+        var inputModuleType = System.Type.GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule, Unity.InputSystem");
+        if (inputModuleType == null)
+        {
+            return false;
+        }
+
+        var component = eventSystem.AddComponent(inputModuleType);
+        var assignDefaultActions = inputModuleType.GetMethod("AssignDefaultActions", System.Type.EmptyTypes);
+        assignDefaultActions?.Invoke(component, null);
+        return true;
     }
 
     private static void ConfigureCanvas()

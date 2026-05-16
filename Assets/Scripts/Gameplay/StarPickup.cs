@@ -50,7 +50,7 @@ namespace LightChasePrototype
             var levelManager = Object.FindAnyObjectByType<PrototypeLevelManager>();
             if (levelManager != null)
             {
-                levelManager.RegisterStarCollected();
+                levelManager.RegisterStarCollected(starValue);
             }
 
             Destroy(gameObject);

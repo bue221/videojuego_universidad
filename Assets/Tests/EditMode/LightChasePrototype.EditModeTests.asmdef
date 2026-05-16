@@ -1,7 +1,7 @@
 {
   "name": "LightChasePrototype.EditModeTests",
   "references": [
-    "Assembly-CSharp"
+    "LightChasePrototype"
   ],
   "includePlatforms": [
     "Editor"

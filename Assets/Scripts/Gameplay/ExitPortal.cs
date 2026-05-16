@@ -46,6 +46,7 @@ namespace LightChasePrototype
                 return;
             }
 
+            _levelManager.MarkLevelCompleted();
             Debug.Log("Nivel completado: encontraste la salida.");
         }
 

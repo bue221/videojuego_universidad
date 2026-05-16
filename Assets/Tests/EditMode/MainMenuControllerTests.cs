@@ -1,28 +1,45 @@
 using LightChasePrototype.UI;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class MainMenuControllerTests
 {
     private GameObject _root;
     private GameObject _instructionsPanel;
+    private GameObject _menuCanvas;
     private MainMenuController _controller;
 
     [SetUp]
     public void SetUp()
     {
         _root = new GameObject("MainMenuRoot");
+        _menuCanvas = new GameObject("MenuCanvas");
         _instructionsPanel = new GameObject("InstructionsPanel");
         _instructionsPanel.transform.SetParent(_root.transform);
 
         _controller = _root.AddComponent<MainMenuController>();
         _controller.Configure(_instructionsPanel, "LightChasePrototype");
+        _controller.GetType().GetField("menuCanvasGroup", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            ?.SetValue(_controller, _menuCanvas.AddComponent<CanvasGroup>());
     }
 
     [TearDown]
     public void TearDown()
     {
         Object.DestroyImmediate(_root);
+        if (_menuCanvas != null)
+        {
+            Object.DestroyImmediate(_menuCanvas);
+        }
+
+        var eventSystem = Object.FindAnyObjectByType<EventSystem>();
+        if (eventSystem != null)
+        {
+            Object.DestroyImmediate(eventSystem.gameObject);
+        }
+
+        Time.timeScale = 1f;
     }
 
     [Test]
@@ -55,11 +72,25 @@ public class MainMenuControllerTests
     public void PlayGame_UsesConfiguredSceneLoader()
     {
         string loadedScene = null;
-        _controller.ConfigureActionsForTests(sceneName => loadedScene = sceneName, null);
+        _controller.ConfigureActionsForTests(sceneName => loadedScene = sceneName, null, () => "Boot");
 
         _controller.PlayGame();
 
         Assert.That(loadedScene, Is.EqualTo("LightChasePrototype"));
+    }
+
+    [Test]
+    public void PlayGame_InGameplayScene_HidesMenuWithoutLoadingScene()
+    {
+        string loadedScene = null;
+        _controller.ShowMenu();
+        _controller.ConfigureActionsForTests(sceneName => loadedScene = sceneName, null, () => "LightChasePrototype");
+
+        _controller.PlayGame();
+
+        Assert.That(loadedScene, Is.Null);
+        Assert.That(_controller.MenuVisible, Is.False);
+        Assert.That(Time.timeScale, Is.EqualTo(1f));
     }
 
     [Test]
@@ -71,5 +102,20 @@ public class MainMenuControllerTests
         _controller.QuitGame();
 
         Assert.That(quitCalled, Is.True);
+    }
+
+    [Test]
+    public void EnsureMenuExists_CreatesVisibleOverlayAndPausesGame()
+    {
+        Object.DestroyImmediate(_root);
+        Object.DestroyImmediate(_menuCanvas);
+        _root = null;
+        _menuCanvas = null;
+
+        var createdMenu = MainMenuController.EnsureMenuExists();
+
+        Assert.That(createdMenu, Is.Not.Null);
+        Assert.That(createdMenu.MenuVisible, Is.True);
+        Assert.That(Time.timeScale, Is.EqualTo(0f));
     }
 }
