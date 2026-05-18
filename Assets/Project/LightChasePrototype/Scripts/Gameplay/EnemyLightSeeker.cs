@@ -5,6 +5,7 @@ namespace LightChasePrototype
 {
     [RequireComponent(typeof(NavMeshAgent))]
     [RequireComponent(typeof(AudioSource))]
+    [RequireComponent(typeof(Animator))]
     public class EnemyLightSeeker : MonoBehaviour
     {
         private const float LegacyBaseMoveSpeed = 2.75f;
@@ -27,33 +28,53 @@ namespace LightChasePrototype
         [SerializeField] private float alertWarningPitch = 1.08f;
         [SerializeField] private float maximumWarningPitch = 1.35f;
         [SerializeField] private Renderer enemyRenderer;
+        [SerializeField] private Light enemyGlow;
 
         private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
 
         private MaterialPropertyBlock _materialPropertyBlock;
 
         private NavMeshAgent _agent;
+        private Animator _animator;
         private AudioSource _warningAudioSource;
         private PlayerLightState _playerLightState;
         private PrototypeLevelManager _levelManager;
         private Transform _playerTransform;
         private float _repathTimer;
         private float _damageTimer;
+        private float _glowBaseIntensity;
 
         private void Awake()
         {
             ApplyFallbackBalanceForLegacyScenes();
             _agent = GetComponent<NavMeshAgent>();
             _agent.speed = baseMoveSpeed;
+            _animator = GetComponent<Animator>();
             _warningAudioSource = GetComponent<AudioSource>();
             ConfigureWarningAudio();
 
             _materialPropertyBlock = new MaterialPropertyBlock();
+
+            if (enemyGlow == null)
+            {
+                enemyGlow = GetComponentInChildren<Light>();
+            }
+
+            _glowBaseIntensity = enemyGlow != null ? enemyGlow.intensity : 0.7f;
         }
 
         public void ConfigureRenderer(Renderer assignedRenderer)
         {
             enemyRenderer = assignedRenderer;
+        }
+
+        public void ConfigureGlow(Light glowLight)
+        {
+            enemyGlow = glowLight;
+            if (enemyGlow != null)
+            {
+                _glowBaseIntensity = enemyGlow.intensity;
+            }
         }
 
         private void Start()
@@ -82,6 +103,8 @@ namespace LightChasePrototype
                     _agent.ResetPath();
                 }
 
+                UpdateAnimator(0f);
+                UpdateGlow(0f);
                 return;
             }
 
@@ -99,20 +122,9 @@ namespace LightChasePrototype
                 : baseMoveSpeed;
 
             UpdateWarningAudio(warningLevel, isChasing);
-
-            // Keep the model textures intact: drive only emission via property block.
-            if (enemyRenderer != null)
-            {
-                enemyRenderer.GetPropertyBlock(_materialPropertyBlock);
-                _materialPropertyBlock.SetColor(
-                    EmissionColorId,
-                    isChasing
-                        ? new Color(1.2f, 0.2f, 0.1f)
-                        : isAlerted
-                            ? new Color(0.85f, 0.6f, 0.08f)
-                            : new Color(0.05f, 0.05f, 0.05f));
-                enemyRenderer.SetPropertyBlock(_materialPropertyBlock);
-            }
+            UpdateEnemyAppearance(isChasing, isAlerted);
+            UpdateAnimator(_agent.velocity.magnitude);
+            UpdateGlow(isChasing ? 1f : isAlerted ? 0.5f : 0f);
 
             if (!isChasing)
             {
@@ -135,6 +147,52 @@ namespace LightChasePrototype
 
             _repathTimer = repathInterval;
             _agent.SetDestination(_playerTransform.position);
+        }
+
+        private void UpdateEnemyAppearance(bool isChasing, bool isAlerted)
+        {
+            if (enemyRenderer == null)
+            {
+                return;
+            }
+
+            enemyRenderer.GetPropertyBlock(_materialPropertyBlock);
+            _materialPropertyBlock.SetColor(
+                EmissionColorId,
+                isChasing
+                    ? new Color(0.35f, 0.06f, 0.03f)
+                    : isAlerted
+                        ? new Color(0.18f, 0.1f, 0.02f)
+                        : new Color(0.02f, 0.02f, 0.04f));
+            enemyRenderer.SetPropertyBlock(_materialPropertyBlock);
+        }
+
+        private void UpdateAnimator(float speed)
+        {
+            if (_animator == null || _animator.runtimeAnimatorController == null)
+            {
+                return;
+            }
+
+            var normalizedSpeed = _agent.speed > 0.01f
+                ? Mathf.Clamp01(speed / _agent.speed)
+                : 0f;
+            _animator.SetFloat("Speed", normalizedSpeed);
+        }
+
+        private void UpdateGlow(float intensityFactor)
+        {
+            if (enemyGlow == null)
+            {
+                return;
+            }
+
+            enemyGlow.intensity = Mathf.Lerp(0f, _glowBaseIntensity * 1.5f, intensityFactor);
+            enemyGlow.color = intensityFactor > 0.8f
+                ? new Color(1f, 0.4f, 0.2f)
+                : intensityFactor > 0.3f
+                    ? new Color(1f, 0.7f, 0.3f)
+                    : new Color(0.95f, 0.85f, 0.7f);
         }
 
         private void ConfigureWarningAudio()

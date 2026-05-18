@@ -5,7 +5,6 @@ using Unity.AI.Navigation;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.AI;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 
@@ -15,8 +14,6 @@ public static class LightChaseWaterLevelBuilder
     private const string WaterLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level03.unity";
     private const string PlayerPrefabPath = "Assets/ThirdParty/StarterAssets/ThirdPersonController/Prefabs/PlayerArmature.prefab";
     private const string CameraPrefabPath = "Assets/ThirdParty/StarterAssets/ThirdPersonController/Prefabs/PlayerFollowCamera.prefab";
-    private const string Enemy01ModelPath = "Assets/MeshyImports/Enemigo_01/Meshy_AI_El_Director_biped_Animation_Walking_withSkin.fbx";
-    private const string Enemy01MaterialPath = "Assets/MeshyImports/Enemigo_01/Material_1.mat";
     private const string ScenarioConvertedModelPath = "Assets/Project/LightChasePrototype/Resources/ModelosEscenarios/escenario_3_converted.fbx";
     private const string ScenarioModelPath = "Assets/Project/LightChasePrototype/Resources/ModelosEscenarios/escenario_3.glb";
     private const string ImportedScenarioModelPath = "Assets/MeshyImports/LightChaseLevel03/escenario_3_runtime.glb";
@@ -414,135 +411,11 @@ public static class LightChaseWaterLevelBuilder
     private static void ConfigureEnemy(Bounds environmentBounds)
     {
         var groundPoint = BuildGroundPoint(environmentBounds, 0.52f, 0.5f, 0f);
-        var enemyObject = CreateEnemyRoot("LightHunter", groundPoint);
-        AlignBaseToY(enemyObject, groundPoint.y);
+        var enemyObject = EnemyBuilder.BuildEnemyRoot("LightHunter", groundPoint);
+        EnemyBuilder.AlignBaseToY(enemyObject, groundPoint.y);
         enemyObject.transform.position += Vector3.up * 0.02f;
-
-        var renderer = enemyObject.GetComponentInChildren<Renderer>();
-
-        var agent = enemyObject.AddComponent<NavMeshAgent>();
-        agent.angularSpeed = 240f;
-        agent.acceleration = 24f;
-        agent.stoppingDistance = 1.35f;
-
-        var enemy = enemyObject.AddComponent<EnemyLightSeeker>();
-        enemy.ConfigureRenderer(renderer);
-    }
-
-    private static GameObject CreateEnemyRoot(string objectName, Vector3 position)
-    {
-        var root = new GameObject(objectName);
-        root.transform.position = position;
-
-        var modelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(Enemy01ModelPath);
-        if (modelPrefab != null)
-        {
-            var modelInstance = PrefabUtility.InstantiatePrefab(modelPrefab) as GameObject;
-            if (modelInstance == null)
-            {
-                modelInstance = Object.Instantiate(modelPrefab);
-            }
-
-            modelInstance.name = "Enemigo_01_Model";
-            modelInstance.transform.SetParent(root.transform, false);
-            ApplyEnemy01Material(modelInstance);
-            NormalizeModelHeight(modelInstance.transform, 2.2f);
-            return root;
-        }
-
-        var fallback = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-        fallback.name = "FallbackEnemy";
-        fallback.transform.SetParent(root.transform, false);
-        fallback.transform.localScale = new Vector3(1.2f, 1.4f, 1.2f);
-        return root;
-    }
-
-    private static void ApplyEnemy01Material(GameObject modelInstance)
-    {
-        if (modelInstance == null)
-        {
-            return;
-        }
-
-        var material = AssetDatabase.LoadAssetAtPath<Material>(Enemy01MaterialPath);
-        if (material == null)
-        {
-            return;
-        }
-
-        foreach (var renderer in modelInstance.GetComponentsInChildren<Renderer>(true))
-        {
-            if (renderer == null)
-            {
-                continue;
-            }
-
-            var shared = renderer.sharedMaterials;
-            if (shared == null || shared.Length == 0)
-            {
-                renderer.sharedMaterial = material;
-                continue;
-            }
-
-            for (var i = 0; i < shared.Length; i++)
-            {
-                shared[i] = material;
-            }
-
-            renderer.sharedMaterials = shared;
-        }
-    }
-
-    private static void NormalizeModelHeight(Transform modelRoot, float targetHeight)
-    {
-        if (modelRoot == null)
-        {
-            return;
-        }
-
-        var renderers = modelRoot.GetComponentsInChildren<Renderer>();
-        if (renderers == null || renderers.Length == 0)
-        {
-            return;
-        }
-
-        var bounds = renderers[0].bounds;
-        for (var i = 1; i < renderers.Length; i++)
-        {
-            bounds.Encapsulate(renderers[i].bounds);
-        }
-
-        var height = bounds.size.y;
-        if (height <= 0.01f)
-        {
-            return;
-        }
-
-        var factor = targetHeight / height;
-        modelRoot.localScale *= factor;
-    }
-
-    private static void AlignBaseToY(GameObject root, float targetY)
-    {
-        if (root == null)
-        {
-            return;
-        }
-
-        var renderers = root.GetComponentsInChildren<Renderer>();
-        if (renderers == null || renderers.Length == 0)
-        {
-            return;
-        }
-
-        var bounds = renderers[0].bounds;
-        for (var i = 1; i < renderers.Length; i++)
-        {
-            bounds.Encapsulate(renderers[i].bounds);
-        }
-
-        var delta = targetY - bounds.min.y;
-        root.transform.position += Vector3.up * delta;
+        EnemyBuilder.ConfigureNavMeshAgent(enemyObject);
+        EnemyBuilder.ConfigureEnemyLightSeeker(enemyObject);
     }
 
     private static void ConfigureStars(Bounds environmentBounds)
