@@ -1,11 +1,14 @@
 using System.Collections.Generic;
 using LightChasePrototype;
 using UnityEngine;
+using UnityEngine.AI;
 
 public static class EnemySpawner
 {
     private const string EnemyGroupName = "LightHunters";
     private const string PrimaryEnemyName = "LightHunter";
+    private const float NavMeshSampleRadius = 4f;
+    private const float GroundEpsilon = 0.02f;
 
     // Order used when the requested EnemyKind cannot be instantiated (e.g. its FBX is
     // broken or marked as crashed by the asset importer). The spawner walks this list
@@ -52,7 +55,7 @@ public static class EnemySpawner
             }
 
             EnemyBuilder.AlignBaseToY(enemyObject, 0f);
-            enemyObject.transform.position += Vector3.up * 0.02f;
+            enemyObject.transform.position += Vector3.up * GroundEpsilon;
             EnemyBuilder.ConfigureNavMeshAgent(enemyObject);
             var seeker = EnemyBuilder.ConfigureEnemyLightSeeker(enemyObject);
 
@@ -67,6 +70,40 @@ public static class EnemySpawner
         }
 
         return results;
+    }
+
+    // Reasienta cada enemigo en el NavMesh para que sus pies queden exactamente
+    // sobre la superficie navegable. Debe llamarse despues de bakear el NavMesh,
+    // pues los anchors literales en los builders viven en y=0 pero los suelos
+    // de cada nivel pueden vivir en y!=0 (e.g. lake en y=-0.05 o mesetas).
+    public static int RebindEnemiesToNavMesh()
+    {
+        var seekers = Object.FindObjectsByType<EnemyLightSeeker>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var fixedCount = 0;
+
+        foreach (var seeker in seekers)
+        {
+            if (seeker == null)
+            {
+                continue;
+            }
+
+            var origin = seeker.transform.position;
+            if (NavMesh.SamplePosition(origin, out var hit, NavMeshSampleRadius, NavMesh.AllAreas))
+            {
+                // Sin epsilon vertical: el NavMeshAgent ya queda alineado al NavMesh,
+                // y baseOffset negativo en EnemyBuilder compensa el desfase de voxelizacion
+                // del bake para que los pies del enemigo apoyen sobre el piso visible.
+                seeker.transform.position = hit.position;
+                fixedCount++;
+            }
+            else
+            {
+                Debug.LogWarning($"[EnemySpawner] Enemigo '{seeker.name}' sin NavMesh dentro de {NavMeshSampleRadius}m de {origin}. Quedara en su anchor original y puede flotar.");
+            }
+        }
+
+        return fixedCount;
     }
 
     private static GameObject TryBuildWithFallback(EnemyKind requestedKind, string name, Vector3 position)

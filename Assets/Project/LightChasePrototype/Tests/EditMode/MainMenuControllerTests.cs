@@ -19,6 +19,7 @@ public class MainMenuControllerTests
     public void SetUp()
     {
         LightChaseLevelCatalog.SelectLevel(LightChaseLevelCatalog.PrototypeLevelId);
+        GlobalUiController.ResetGameplayProgress();
         _root = new GameObject("MainMenuRoot");
         _menuCanvas = new GameObject("MenuCanvas");
         _mainActionsPanel = new GameObject("ButtonStack");
@@ -80,6 +81,7 @@ public class MainMenuControllerTests
 
         DestroyNamedObject("GameSessionManager");
         DestroyNamedObject("GlobalUIRoot");
+        GlobalUiController.ResetGameplayProgress();
         Time.timeScale = 1f;
     }
 
@@ -356,6 +358,57 @@ public class MainMenuControllerTests
         Assert.That(createdMenu.DefeatVisible, Is.False);
         Assert.That(victoryTitle.text, Is.EqualTo("GANASTE EL JUEGO"));
         Assert.That(victoryMessage.text, Is.EqualTo("Completaste todos los niveles."));
+    }
+
+    [Test]
+    public void EnsureMenuExists_ShowsCreditsFooterWithAuthors()
+    {
+        Object.DestroyImmediate(_root);
+        Object.DestroyImmediate(_menuCanvas);
+        _root = null;
+        _menuCanvas = null;
+
+        MainMenuController.EnsureMenuExists();
+
+        var creditsFooter = GameObject.Find("CreditsFooter")?.GetComponent<Text>();
+
+        Assert.That(creditsFooter, Is.Not.Null, "El menu principal debe incluir un footer de creditos.");
+        Assert.That(creditsFooter.text, Is.EqualTo("Hecho por Andres Plaza y Nicolas Fonseca"));
+    }
+
+    [Test]
+    public void StartGameFromAvatarSelection_MarksGameplayInProgress()
+    {
+        GlobalUiController.ResetGameplayProgress();
+        _controller.ConfigureActionsForTests(sceneName => { }, null, () => "Boot");
+
+        _controller.PlayGame();
+        _controller.PlayGame();
+
+        Assert.That(GlobalUiController.GameplayInProgress, Is.True,
+            "Presionar Comenzar tras elegir avatar debe marcar la corrida como iniciada para que el menu no reaparezca al cargar el nivel.");
+    }
+
+    [Test]
+    public void HideInstructions_RestoresDecorativeHeaderAndFooter()
+    {
+        Object.DestroyImmediate(_root);
+        Object.DestroyImmediate(_menuCanvas);
+        _root = null;
+        _menuCanvas = null;
+
+        var createdMenu = MainMenuController.EnsureMenuExists();
+
+        createdMenu.ShowInstructions();
+        createdMenu.HideInstructions();
+
+        Assert.That(GameObject.Find("GameTitle").activeInHierarchy, Is.True,
+            "El titulo del juego debe volver a verse al cerrar el modal de instrucciones.");
+        Assert.That(GameObject.Find("Subtitle").activeInHierarchy, Is.True);
+        Assert.That(GameObject.Find("InstitutionBanner").activeInHierarchy, Is.True);
+        Assert.That(GameObject.Find("CreditsFooter").activeInHierarchy, Is.True,
+            "El footer de creditos debe volver a verse al cerrar el modal de instrucciones.");
+        Assert.That(GameObject.Find("Glow").activeInHierarchy, Is.True);
     }
 
     [Test]

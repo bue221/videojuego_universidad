@@ -21,6 +21,22 @@ namespace LightChasePrototype.UI
 
         public static GlobalUiController Instance { get; private set; }
 
+        // Tracks whether the player already committed to a run via the menu
+        // (pressed Comenzar after selecting avatar) or via auto-advance between
+        // levels. When false, entering a gameplay scene must keep the main
+        // menu visible so the user always sees it before play starts.
+        public static bool GameplayInProgress { get; private set; }
+
+        public static void MarkGameplayStarted()
+        {
+            GameplayInProgress = true;
+        }
+
+        public static void ResetGameplayProgress()
+        {
+            GameplayInProgress = false;
+        }
+
         public static GlobalUiController EnsureExists(
             PrototypeLevelManager levelManager = null,
             string assignedGameplaySceneName = null)
@@ -103,12 +119,17 @@ namespace LightChasePrototype.UI
             gameHudController = GameHudController.EnsureHudExists(levelManager, transform);
             gameHudController.BindLevelManager(levelManager);
 
-            // When entering a gameplay scene we always start with the menu
-            // hidden so the auto-advance flow between levels never re-opens
-            // the main menu in the middle of a run.
-            if (levelManager != null)
+            // The main menu must always greet the player before any run starts.
+            // Only hide it automatically if the player already committed to a
+            // run (pressed Comenzar from the menu) or we are auto-advancing
+            // between levels mid-run.
+            if (levelManager != null && GameplayInProgress)
             {
                 mainMenuController.HideMenu();
+            }
+            else if (levelManager != null)
+            {
+                mainMenuController.ShowMenu();
             }
 
             UpdateHudVisibility(levelManager);
@@ -215,6 +236,7 @@ namespace LightChasePrototype.UI
             }
 
             _advancingToNextLevel = true;
+            MarkGameplayStarted();
             StartCoroutine(AdvanceAfterDelay(nextSceneName));
         }
 

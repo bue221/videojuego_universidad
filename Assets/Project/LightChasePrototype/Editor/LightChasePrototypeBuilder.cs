@@ -251,6 +251,8 @@ public static class LightChasePrototypeBuilder
         navMeshSurface.useGeometry = NavMeshCollectGeometry.RenderMeshes;
         navMeshSurface.layerMask = ~0;
         navMeshSurface.BuildNavMesh();
+
+        EnemySpawner.RebindEnemiesToNavMesh();
     }
 
     private static Material CreateEmissiveMaterial(string materialName, Material fallbackMaterial, Color baseColor, Color emissionColor)

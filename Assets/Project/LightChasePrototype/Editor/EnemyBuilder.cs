@@ -20,6 +20,15 @@ public static class EnemyBuilder
     private const float NavMeshAgentRadius = 0.45f;
     private const float NavMeshAgentHeight = 2.2f;
 
+    // El NavMesh horneado queda algunos centimetros sobre el piso visible por la
+    // voxelizacion del bake (agentClimb 0.4 + voxelSize default). Sin compensacion,
+    // el agente snap-ea a la superficie del NavMesh y el modelo flota sobre el piso.
+    // baseOffset negativo baja al transform respecto a la posicion del agente sobre
+    // el NavMesh para que los pies del enemigo apoyen sobre el piso real. Este valor
+    // debe mantenerse alineado con EnemyLightSeeker.NavMeshAgentBaseOffset, que
+    // tambien lo aplica en runtime para enemigos ya guardados en escena.
+    private const float NavMeshAgentBaseOffset = -0.15f;
+
     public static GameObject BuildEnemyRoot(string objectName, Vector3 position)
     {
         return BuildEnemyRoot(DefaultEnemyKind, objectName, position);
@@ -111,6 +120,13 @@ public static class EnemyBuilder
     // ModelImporterClipAnimation) corrupts the importer state and crashes Unity natively
     // inside ModelImporter::SplitAnimationClips. The walk loop is guaranteed downstream
     // by cloning the clip into a project asset and setting loopTime on that copy.
+    //
+    // Por que se fuerza Generic (no Humanoid): los FBX de Meshy llegan marcados como
+    // Humanoid pero sin mapping de huesos valido (humanDescription.human y skeleton
+    // vacios). Eso hace que el clip clonado guarde paths como muscle hashes en vez de
+    // strings de jerarquia, y al reproducirlo el modelo queda congelado en T-pose porque
+    // el animator no puede mapear los hashes contra el armature. Generic preserva las
+    // paths como rutas reales (Armature/Hips/...) y la animacion corre tal cual viene.
     public static void PrepareEnemyKindAssets(EnemyKindAssets assets)
     {
         var importer = AssetImporter.GetAtPath(assets.ModelPath) as ModelImporter;
@@ -120,13 +136,13 @@ public static class EnemyBuilder
         }
 
         var needsReimport = false;
-        if (importer.animationType == ModelImporterAnimationType.None)
+        if (importer.animationType != ModelImporterAnimationType.Generic)
         {
             importer.animationType = ModelImporterAnimationType.Generic;
             needsReimport = true;
         }
 
-        if (importer.avatarSetup == ModelImporterAvatarSetup.NoAvatar)
+        if (importer.avatarSetup != ModelImporterAvatarSetup.CreateFromThisModel)
         {
             importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
             needsReimport = true;
@@ -134,7 +150,21 @@ public static class EnemyBuilder
 
         if (needsReimport)
         {
+            // Si el FBX cambia de Humanoid a Generic, el clip clonado previo quedo
+            // con paths como muscle hashes y ya no resuelve contra el armature.
+            // Borramos el clon para que GetOrCreateWalkClip lo reconstruya con paths
+            // de jerarquia reales en el siguiente build.
+            InvalidateClonedWalkClip(assets);
             importer.SaveAndReimport();
+        }
+    }
+
+    private static void InvalidateClonedWalkClip(EnemyKindAssets assets)
+    {
+        var existing = AssetDatabase.LoadAssetAtPath<AnimationClip>(assets.WalkClipPath);
+        if (existing != null)
+        {
+            AssetDatabase.DeleteAsset(assets.WalkClipPath);
         }
     }
 
@@ -523,6 +553,8 @@ public static class EnemyBuilder
         return existing;
     }
 
+    private static readonly Color BaseEmissionColor = new(0.45f, 0.18f, 0.05f);
+
     private static bool NeedsTextureReconfiguration(Material material, EnemyKindAssets assets)
     {
         var expectedAlbedo = AssetDatabase.LoadAssetAtPath<Texture2D>(assets.AlbedoPath);
@@ -531,7 +563,25 @@ public static class EnemyBuilder
             return false;
         }
 
-        return material.GetTexture("_BaseMap") != expectedAlbedo;
+        if (material.GetTexture("_BaseMap") != expectedAlbedo)
+        {
+            return true;
+        }
+
+        // Migracion: materiales viejos quedaron sin _EMISSION ni roughness configurado.
+        // Forzar reconfig para ponerlos al dia sin tener que borrarlos manualmente.
+        if (!material.IsKeywordEnabled("_EMISSION"))
+        {
+            return true;
+        }
+
+        var expectedRoughness = AssetDatabase.LoadAssetAtPath<Texture2D>(assets.RoughnessPath);
+        if (expectedRoughness != null && material.GetTexture("_SpecGlossMap") != expectedRoughness)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private static void ConfigureEnemyMaterialMaps(Material material, EnemyKindAssets assets)
@@ -539,6 +589,7 @@ public static class EnemyBuilder
         var albedo = AssetDatabase.LoadAssetAtPath<Texture2D>(assets.AlbedoPath);
         var normal = AssetDatabase.LoadAssetAtPath<Texture2D>(assets.NormalPath);
         var metallic = AssetDatabase.LoadAssetAtPath<Texture2D>(assets.MetallicPath);
+        var roughness = AssetDatabase.LoadAssetAtPath<Texture2D>(assets.RoughnessPath);
 
         EnsureNormalMapTextureType(assets.NormalPath);
 
@@ -571,17 +622,31 @@ public static class EnemyBuilder
             material.SetFloat("_Metallic", 0f);
         }
 
+        // Roughness se aplica al spec gloss slot. URP Lit lo lee cuando el
+        // material esta en flujo Specular o cuando se usa como mascara extra.
+        // Dejarlo asignado preserva la firma PBR generada por Meshy y permite
+        // que cada enemigo se vea distinto en luz baja.
+        if (roughness != null)
+        {
+            material.SetTexture("_SpecGlossMap", roughness);
+        }
+
         material.SetColor("_BaseColor", Color.white);
         material.SetColor("_Color", Color.white);
-        material.SetFloat("_Smoothness", 0.55f);
+        material.SetFloat("_Smoothness", 0.35f);
         material.SetFloat("_SmoothnessTextureChannel", 0f);
         material.SetFloat("_WorkflowMode", 1f);
         material.SetFloat("_Surface", 0f);
         material.SetFloat("_Cull", 2f);
         material.SetFloat("_ReceiveShadows", 1f);
         material.SetFloat("_EnvironmentReflections", 1f);
-        material.SetColor("_EmissionColor", Color.black);
-        material.DisableKeyword("_EMISSION");
+
+        // Emission tenue base: garantiza que el enemigo se lea en zonas oscuras
+        // sin depender 100% de la iluminacion de escena. EnemyLightSeeker puede
+        // intensificar este tono via MaterialPropertyBlock cuando entra en chase.
+        material.SetColor("_EmissionColor", BaseEmissionColor);
+        material.EnableKeyword("_EMISSION");
+        material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
     }
 
     private static void EnsureNormalMapTextureType(string texturePath)
@@ -687,7 +752,7 @@ public static class EnemyBuilder
 
         agent.radius = NavMeshAgentRadius;
         agent.height = NavMeshAgentHeight;
-        agent.baseOffset = 0f;
+        agent.baseOffset = NavMeshAgentBaseOffset;
         agent.angularSpeed = 240f;
         agent.acceleration = 24f;
         agent.stoppingDistance = 1.35f;

@@ -344,6 +344,8 @@ public static class LightChaseNatureLevelBuilder
         navMeshSurface.useGeometry = NavMeshCollectGeometry.RenderMeshes;
         navMeshSurface.layerMask = ~0;
         navMeshSurface.BuildNavMesh();
+
+        EnemySpawner.RebindEnemiesToNavMesh();
     }
 
     private static GameObject CreateGroundTile(Transform parent, string prefabName, Vector3 position, Vector3 scale, float rotationY)

@@ -35,6 +35,7 @@ namespace LightChasePrototype.UI
         [SerializeField] private GameObject institutionBanner;
         [SerializeField] private GameObject gameTitle;
         [SerializeField] private GameObject subtitleElement;
+        [SerializeField] private GameObject creditsFooter;
 
         private Action<string> _sceneLoader;
         private Action _quitAction;
@@ -130,6 +131,9 @@ namespace LightChasePrototype.UI
             var subtitleObject = CreateStyledTextWithObject("Subtitle", root.transform, "Modelado 3D y videojuegos", 22, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(0.78f, 0.86f, 0.96f));
             SetAnchoredRect(subtitleObject.GetComponent<RectTransform>(), new Vector2(0.5f, 0.67f), new Vector2(1000f, 38f));
 
+            var creditsFooterObject = CreateStyledTextWithObject("CreditsFooter", root.transform, "Hecho por Andres Plaza y Nicolas Fonseca", 20, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(0.78f, 0.86f, 0.96f));
+            SetAnchoredRect(creditsFooterObject.GetComponent<RectTransform>(), new Vector2(0.5f, 0.04f), new Vector2(1200f, 32f));
+
             var levelSection = CreateLevelSelectionPanel(root.transform);
 
             var avatarSection = CreateAvatarSelectionPanel(root.transform);
@@ -174,6 +178,7 @@ namespace LightChasePrototype.UI
             controller.institutionBanner = bannerObject;
             controller.gameTitle = gameTitleObject;
             controller.subtitleElement = subtitleObject;
+            controller.creditsFooter = creditsFooterObject;
             controller.RegisterAvatarButton(PlayerAvatarSelection.ArmatureAvatarId, avatarSection.transform.Find("AvatarButtonRow/HumanoButton").GetComponent<Button>());
             controller.RegisterAvatarButton(PlayerAvatarSelection.CapsuleAvatarId, avatarSection.transform.Find("AvatarButtonRow/CapsulaButton").GetComponent<Button>());
             controller.RegisterLevelButton(LightChaseLevelCatalog.PrototypeLevelId, levelSection.transform.Find("LevelButtonRow/Nivel1Button").GetComponent<Button>());
@@ -304,12 +309,12 @@ namespace LightChasePrototype.UI
         {
             if (levelSelectionPanel == null)
             {
-                ShowMainActions();
+                ReturnToMainActions();
                 return;
             }
 
             levelSelectionPanel.SetActive(false);
-            ShowMainActions();
+            ReturnToMainActions();
         }
 
         public void ShowAvatarSelectionFromLevel()
@@ -341,12 +346,12 @@ namespace LightChasePrototype.UI
 
             if (avatarSelectionPanel == null)
             {
-                ShowMainActions();
+                ReturnToMainActions();
                 return;
             }
 
             avatarSelectionPanel.SetActive(false);
-            ShowMainActions();
+            ReturnToMainActions();
         }
 
         public void ShowInstructions()
@@ -369,12 +374,18 @@ namespace LightChasePrototype.UI
         {
             if (instructionsPanel == null)
             {
-                ShowMainActions();
+                ReturnToMainActions();
                 return;
             }
 
             instructionsPanel.SetActive(false);
+            ReturnToMainActions();
+        }
+
+        private void ReturnToMainActions()
+        {
             ShowMainActions();
+            ShowDecorativeElements();
         }
 
         public void QuitGame()
@@ -629,6 +640,7 @@ namespace LightChasePrototype.UI
         {
             _awaitingAvatarConfirmation = false;
             HideDefeat();
+            GlobalUiController.MarkGameplayStarted();
             var selectedLevel = ResolveSelectedLevel();
 
             if (GetActiveSceneName() == selectedLevel.SceneName)
@@ -737,6 +749,7 @@ namespace LightChasePrototype.UI
             if (institutionBanner != null) institutionBanner.SetActive(visible);
             if (gameTitle != null) gameTitle.SetActive(visible);
             if (subtitleElement != null) subtitleElement.SetActive(visible);
+            if (creditsFooter != null) creditsFooter.SetActive(visible);
         }
 
         private void HideDecorativeElements()
@@ -774,6 +787,7 @@ namespace LightChasePrototype.UI
 
         private void ReturnToMainMenu()
         {
+            GlobalUiController.ResetGameplayProgress();
             ShowMenu();
         }
 
@@ -872,6 +886,11 @@ namespace LightChasePrototype.UI
             if (subtitleElement == null)
             {
                 subtitleElement = transform.Find("Subtitle")?.gameObject;
+            }
+
+            if (creditsFooter == null)
+            {
+                creditsFooter = transform.Find("CreditsFooter")?.gameObject;
             }
         }
 

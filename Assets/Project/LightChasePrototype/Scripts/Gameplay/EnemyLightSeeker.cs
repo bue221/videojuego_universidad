@@ -15,7 +15,12 @@ namespace LightChasePrototype
         private const float IdleAnimatorSpeed = 0.45f;
         private const float WalkAnimatorSpeed = 1f;
         private const float ChaseAnimatorSpeed = 1.35f;
-        private const float InitialIdleAnimationFrames = 2f;
+
+        // El NavMesh queda voxelizado algunos cm sobre el piso visible. Sin compensar,
+        // el agente snap-ea a la superficie del NavMesh y el modelo flota. Este offset
+        // negativo baja al transform respecto a la posicion del agente sobre el NavMesh
+        // para que los pies apoyen sobre el piso real.
+        private const float NavMeshAgentBaseOffset = -0.15f;
 
         [SerializeField] private float lightSignatureMultiplier = 1.85f;
         [SerializeField] private float maximumDetectionRange = 20f;
@@ -45,14 +50,13 @@ namespace LightChasePrototype
         private float _damageTimer;
         private float _glowBaseIntensity;
         private float _bodyGlowBaseIntensity;
-        private bool _animatorBootstrapped;
-        private int _animatorBootstrapFramesRemaining;
 
         private void Awake()
         {
             ApplyFallbackBalanceForLegacyScenes();
             _agent = GetComponent<NavMeshAgent>();
             _agent.speed = baseMoveSpeed;
+            _agent.baseOffset = NavMeshAgentBaseOffset;
             _animator = ResolveAnimator();
             _warningAudioSource = GetComponent<AudioSource>();
             ConfigureWarningAudio();
@@ -60,7 +64,32 @@ namespace LightChasePrototype
             _glowBaseIntensity = enemyGlow != null ? enemyGlow.intensity : 2.4f;
             _bodyGlowBaseIntensity = enemyBodyGlow != null ? enemyBodyGlow.intensity : 1.1f;
 
-            _animatorBootstrapFramesRemaining = Mathf.CeilToInt(InitialIdleAnimationFrames);
+            if (_animator != null)
+            {
+                _animator.enabled = true;
+                // Inicializar Speed antes del primer Update evita el "T-pose flash" del
+                // primer frame: el state Walk usa Speed como speedParameter, asi que
+                // sin esto la animacion arranca pausada y se ve rigida.
+                PrimeAnimatorSpeed(_animator, IdleAnimatorSpeed);
+            }
+        }
+
+        private static void PrimeAnimatorSpeed(Animator animator, float initialSpeed)
+        {
+            if (animator.runtimeAnimatorController == null)
+            {
+                return;
+            }
+
+            if (HasFloatParameter(animator, "Speed"))
+            {
+                animator.SetFloat("Speed", initialSpeed);
+                animator.speed = 1f;
+            }
+            else
+            {
+                animator.speed = Mathf.Max(0.1f, initialSpeed);
+            }
         }
 
         public void ConfigureRenderer(Renderer assignedRenderer)
@@ -175,6 +204,13 @@ namespace LightChasePrototype
                 return;
             }
 
+            // Enemigo siempre debe verse vivo: idle, alerta y chase animan,
+            // solo cambia la velocidad de la animacion.
+            if (!_animator.enabled)
+            {
+                _animator.enabled = true;
+            }
+
             if (HasFloatParameter(_animator, "Speed"))
             {
                 _animator.SetFloat("Speed", targetAnimatorSpeed);
@@ -183,28 +219,6 @@ namespace LightChasePrototype
             else
             {
                 _animator.speed = Mathf.Max(0.1f, targetAnimatorSpeed);
-            }
-
-            ApplyAnimatorActiveState(isChasing);
-        }
-
-        private void ApplyAnimatorActiveState(bool isChasing)
-        {
-            if (!_animatorBootstrapped)
-            {
-                _animator.enabled = true;
-                if (_animatorBootstrapFramesRemaining > 0)
-                {
-                    _animatorBootstrapFramesRemaining--;
-                    return;
-                }
-
-                _animatorBootstrapped = true;
-            }
-
-            if (_animator.enabled != isChasing)
-            {
-                _animator.enabled = isChasing;
             }
         }
 

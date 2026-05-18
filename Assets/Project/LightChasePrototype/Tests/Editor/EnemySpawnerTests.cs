@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using LightChasePrototype;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 public class EnemySpawnerTests
 {
@@ -74,5 +76,60 @@ public class EnemySpawnerTests
         var allSeekers = Object.FindObjectsByType<EnemyLightSeeker>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         Assert.That(allSeekers.Length, Is.EqualTo(1));
         Assert.That(results.Count, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void SpawnEnemies_PlacesEachAgentAtItsAnchorBeforeNavMeshRebind()
+    {
+        var anchors = new[]
+        {
+            new Vector3(0f, 0f, 0f),
+            new Vector3(3f, 0f, 0f),
+            new Vector3(0f, 0f, 3f)
+        };
+
+        var spawns = new List<EnemySpawner.EnemySpawn>
+        {
+            new(EnemyKind.Director, anchors[0]),
+            new(EnemyKind.Deshilachador, anchors[1]),
+            new(EnemyKind.BromaFinal, anchors[2])
+        };
+
+        var results = EnemySpawner.SpawnEnemies(spawns);
+
+        Assert.That(results.Count, Is.EqualTo(3));
+        for (var i = 0; i < results.Count; i++)
+        {
+            var pos = results[i].transform.position;
+            Assert.That(pos.x, Is.EqualTo(anchors[i].x).Within(0.01f));
+            Assert.That(pos.z, Is.EqualTo(anchors[i].z).Within(0.01f));
+            // Pies sobre y=0 + epsilon antifight; no deben flotar arriba de 0.1m.
+            Assert.That(pos.y, Is.LessThan(0.1f), $"Enemigo {i} flota por encima del suelo en y={pos.y}");
+            Assert.That(pos.y, Is.GreaterThanOrEqualTo(0f), $"Enemigo {i} esta hundido en y={pos.y}");
+        }
+    }
+
+    [Test]
+    public void RebindEnemiesToNavMesh_DoesNotThrowWhenNoNavMeshIsPresent()
+    {
+        EnemySpawner.SpawnEnemies(new List<EnemySpawner.EnemySpawn>
+        {
+            new(EnemyKind.Deshilachador, Vector3.zero)
+        });
+
+        // Sin NavMesh bakeado el metodo loguea un warning por enemigo y devuelve 0,
+        // pero no debe crashear.
+        LogAssert.Expect(LogType.Warning, new Regex("EnemySpawner.*sin NavMesh"));
+        Assert.DoesNotThrow(() => EnemySpawner.RebindEnemiesToNavMesh());
+    }
+
+    [Test]
+    public void RebindEnemiesToNavMesh_ReturnsZeroWhenNoEnemiesExist()
+    {
+        EnemySpawner.ClearExistingEnemies();
+
+        var fixedCount = EnemySpawner.RebindEnemiesToNavMesh();
+
+        Assert.That(fixedCount, Is.EqualTo(0));
     }
 }

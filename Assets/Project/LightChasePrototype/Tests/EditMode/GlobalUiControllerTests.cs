@@ -5,12 +5,19 @@ using UnityEngine;
 
 public class GlobalUiControllerTests
 {
+    [SetUp]
+    public void SetUp()
+    {
+        GlobalUiController.ResetGameplayProgress();
+    }
+
     [TearDown]
     public void TearDown()
     {
         DestroyNamedObject("GlobalUIRoot");
         DestroyNamedObject("GameSessionManager");
         DestroyNamedObject("EventSystem");
+        GlobalUiController.ResetGameplayProgress();
         Time.timeScale = 1f;
     }
 
@@ -101,6 +108,39 @@ public class GlobalUiControllerTests
         Assert.That(GameObject.Find("DefeatTitle").GetComponent<UnityEngine.UI.Text>().text, Is.EqualTo("TE ATRAPARON"));
 
         Object.DestroyImmediate(player);
+        Object.DestroyImmediate(levelRoot);
+    }
+
+    [Test]
+    public void EnsureExists_WithLevelManager_ShowsMenuBeforeGameplayStarts()
+    {
+        var levelRoot = new GameObject("LevelManager");
+        var levelManager = levelRoot.AddComponent<PrototypeLevelManager>();
+
+        GlobalUiController.EnsureExists(levelManager);
+        var menuController = Object.FindAnyObjectByType<MainMenuController>();
+
+        Assert.That(menuController, Is.Not.Null);
+        Assert.That(menuController.MenuVisible, Is.True,
+            "El menu principal debe mostrarse siempre antes de iniciar el juego, aun si la escena de gameplay se cargo directamente.");
+
+        Object.DestroyImmediate(levelRoot);
+    }
+
+    [Test]
+    public void EnsureExists_WithLevelManager_HidesMenuWhenGameplayAlreadyInProgress()
+    {
+        var levelRoot = new GameObject("LevelManager");
+        var levelManager = levelRoot.AddComponent<PrototypeLevelManager>();
+        GlobalUiController.MarkGameplayStarted();
+
+        GlobalUiController.EnsureExists(levelManager);
+        var menuController = Object.FindAnyObjectByType<MainMenuController>();
+
+        Assert.That(menuController, Is.Not.Null);
+        Assert.That(menuController.MenuVisible, Is.False,
+            "Cuando el jugador ya esta dentro de una corrida (auto-advance entre niveles), el menu no debe reaparecer.");
+
         Object.DestroyImmediate(levelRoot);
     }
 

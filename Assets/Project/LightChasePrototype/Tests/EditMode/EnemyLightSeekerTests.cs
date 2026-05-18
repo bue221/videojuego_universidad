@@ -106,32 +106,48 @@ public class EnemyLightSeekerTests
     }
 
     [Test]
-    public void UpdateAnimator_DisablesAnimatorWhenNotChasingAfterBootstrap()
+    public void UpdateAnimator_KeepsAnimatorEnabledAcrossAllStates()
     {
         var visual = new GameObject("EnemyVisual");
         visual.transform.SetParent(_enemyRoot.transform, false);
         var childAnimator = visual.AddComponent<Animator>();
-        childAnimator.runtimeAnimatorController = CreateController("EnemyGatingController", addSpeedParameter: true);
+        childAnimator.runtimeAnimatorController = CreateController("EnemyAlwaysOnController", addSpeedParameter: true);
 
         var enemy = _enemyRoot.AddComponent<EnemyLightSeeker>();
         InvokePrivate(enemy, "Awake");
 
-        // Bootstrap frames: animator must remain enabled while warming up the rig pose.
+        // El enemigo debe verse vivo en idle, alerta y chase. El gating del Animator
+        // se elimino porque dejaba al enemigo congelado en pose y rompia la lectura
+        // de la fantasia de persecucion.
         InvokePrivate(enemy, "UpdateAnimator", 0.45f, false);
-        Assert.That(childAnimator.enabled, Is.True, "Animator must stay enabled during bootstrap frames");
+        Assert.That(childAnimator.enabled, Is.True, "Animator must stay enabled in idle state");
 
-        InvokePrivate(enemy, "UpdateAnimator", 0.45f, false);
-        Assert.That(childAnimator.enabled, Is.True, "Animator must stay enabled during the last bootstrap frame");
-
-        // After bootstrap, gating must follow isChasing.
-        InvokePrivate(enemy, "UpdateAnimator", 0.45f, false);
-        Assert.That(childAnimator.enabled, Is.False, "Animator must be disabled when not chasing after bootstrap");
+        InvokePrivate(enemy, "UpdateAnimator", 1f, false);
+        Assert.That(childAnimator.enabled, Is.True, "Animator must stay enabled while alerted");
 
         InvokePrivate(enemy, "UpdateAnimator", 1.35f, true);
-        Assert.That(childAnimator.enabled, Is.True, "Animator must be re-enabled when chase begins");
+        Assert.That(childAnimator.enabled, Is.True, "Animator must stay enabled while chasing");
 
         InvokePrivate(enemy, "UpdateAnimator", 0.45f, false);
-        Assert.That(childAnimator.enabled, Is.False, "Animator must turn off again when chase ends");
+        Assert.That(childAnimator.enabled, Is.True, "Animator must stay enabled when chase ends");
+    }
+
+    [Test]
+    public void UpdateAnimator_ReEnablesAnimatorIfExternallyDisabled()
+    {
+        var visual = new GameObject("EnemyVisual");
+        visual.transform.SetParent(_enemyRoot.transform, false);
+        var childAnimator = visual.AddComponent<Animator>();
+        childAnimator.runtimeAnimatorController = CreateController("EnemyResilientController", addSpeedParameter: true);
+
+        var enemy = _enemyRoot.AddComponent<EnemyLightSeeker>();
+        InvokePrivate(enemy, "Awake");
+
+        childAnimator.enabled = false;
+
+        InvokePrivate(enemy, "UpdateAnimator", 0.45f, false);
+
+        Assert.That(childAnimator.enabled, Is.True, "Animator must be re-enabled defensively if something turned it off");
     }
 
     private static RuntimeAnimatorController CreateController(string controllerName, bool addSpeedParameter)
