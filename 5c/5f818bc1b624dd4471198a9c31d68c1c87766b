@@ -1,0 +1,285 @@
+Assets/Project/LightChasePrototype/Editor/LightChasePrototypeBuilder.cs
+  s_b851883854c146::t_564e8dfc0d2589 67
+  s_391ebd881ba813::t_d52a8a3221f776 8
+  s_d87bdb0942b1b2::t_6a336a0939171d 18,346-347
+  s_b851883854c146::t_87c4ee5d462f2e 151,153-157
+Assets/Project/LightChasePrototype/Editor/EnemyBuilder.cs
+  s_b851883854c146::t_9719ab4b64d8e0 167-169,177,181-183
+  s_61273eaaef4eaf::t_17e54618339ecf 19-21,35,40,43-46,49,51-59,67-70,72-77,84-88,92,95,100-102,391,394-399,402-403,405-452,633-656,682-690,694-711,716-721,724-732,734,739-743
+  s_b851883854c146::t_8bcf8db005e4a3 10-16,25-30,34,42,48,50,66,71
+  s_b851883854c146::t_31dfd1f57cb3fc 173,190,192-193,195,198-200
+  s_b851883854c146::t_42821dd78dfc5e 103-104,115,117-137,139-140,142,144-151
+  s_b851883854c146::t_4b639c57e02f4d 354
+  s_b851883854c146::t_4e9f688abe2ed0 298-324
+  s_b851883854c146::t_93f046b6705d70 270,296-297,326-330,332-334,337-338,340,344-353,355-357,383
+  s_b851883854c146::t_73283eb46250cc 203,206,222
+  s_b851883854c146::t_ead9c3cd56d098 259-263,265-266,279,287,295
+  s_b851883854c146::t_ce0712ef10e74c 457-460,467,470,495,498,509-510,537,539-543
+  s_b851883854c146::t_18efdc51b72440 208,224,233-237
+  s_b851883854c146::t_74febba57c1793 141,143
+  s_b851883854c146::t_cebdced1790a1d 108-113
+  s_b851883854c146::t_fe68bf77af806c 156-157,159-160,165,170,187
+  s_b851883854c146::t_1b34c644aa1dcf 240,243,251,256,258,272
+  s_61273eaaef4eaf::t_9e67ca8eea00dd 474-477,484-486,488,491
+  s_b851883854c146::t_db7dac6fa878ba 37-39
+  s_b851883854c146::t_ae206b3c455822 288-294
+  s_b851883854c146::t_72442a14a351b1 341-343
+  s_b851883854c146::t_d00bc98ea7a4d2 499,511,518-522
+  s_b851883854c146::t_c30ad7769b72e5 105-107,114,138
+  s_61273eaaef4eaf::t_182c6bff843833 205,209-219
+  s_b851883854c146::t_148fe171c4afb0 514-517,524-531,533-534
+  s_391ebd881ba813::t_da35cdc4384cef 2
+  s_61273eaaef4eaf::t_ec95ee170293c5 17
+  s_b851883854c146::t_d87de7e326540f 79,82,90-91,99,116
+  s_b851883854c146::t_beaf312df0e221 269,273-274,276-278,280-282,325,331,336,339,358-382,385
+  s_61273eaaef4eaf::t_502a01435c1c3d 493-494,496-497,500-503,505-506,512-513,523,535-536,538,544-601
+  s_61273eaaef4eaf::t_4c5ac57ce62956 63
+Assets/Project/LightChasePrototype/Scripts/Gameplay/LightChaseLevelCatalog.cs
+  s_d87bdb0942b1b2::t_8e247599622646 13,31-35
+  s_029d74212bc830::t_77fe2e9425887a 36
+Assets/Project/LightChasePrototype/Art/Water/LightChaseWater.shader
+  s_bda67c507ff3ba::t_0567b584194b7b 1-2,6-8,12-13,17-18,28-33,38-39,41-64,67-70,72-92,95,101-102,104,112-117,120-122,124-129,153-155,161,163-168,170
+  s_bda67c507ff3ba::t_bfbf469485902d 3-5,9-11,14-16,19-27,34-37,40,65-66,71,93-94,96-100,103,105-111,118-119,123,130-152,156-160,162,169
+Assets/Project/LightChasePrototype/Animation/Enemigo02.controller.meta
+  s_61273eaaef4eaf::t_7e556837d3619c 1-8
+Assets/Project/LightChasePrototype/Editor/EnemyKindCatalog.cs
+  s_b851883854c146::t_2fc0aa10a6d3d5 1-104
+Assets/Project/LightChasePrototype/Tests/Editor/LightChaseLakeLevelBuilderTests.cs
+  s_029d74212bc830::t_05efcb4011eeff 48
+  s_d87bdb0942b1b2::t_84d49b157527dd 1-47,49-74
+Assets/Project/LightChasePrototype/Tests/EditMode/MainMenuControllerTests.cs
+  s_7e22be4646fd4a::t_b706e934c15c51 193-207
+  s_b8219bf7642d52::t_9f8966bad9b5e2 224-235
+  s_4d622b8df28b25::t_7a47cd3a963a24 341-360
+Assets/Project/LightChasePrototype/Scripts/UI/GlobalUiController.cs
+  s_4d622b8df28b25::t_4410a4a8b57087 210-213
+  s_4d622b8df28b25::t_c5297a9acdbd0d 226-228,231-233
+  s_4d622b8df28b25::t_2258b97fa978ba 105-113
+Assets/Project/LightChasePrototype/Editor/LightChaseNatureLevelBuilder.cs
+  s_b851883854c146::t_8b4975c434dc19 85
+  s_b851883854c146::t_4cd90d49172dbf 251-258
+  s_d87bdb0942b1b2::t_f91e0f59eb1125 18,625-626
+  s_391ebd881ba813::t_9eccff8b8a6b0e 8
+Assets/Project/LightChasePrototype/Animation/Enemigo02_Material.mat
+  s_61273eaaef4eaf::t_f41e4714dd3936 1-139
+Assets/Project/LightChasePrototype/Tests/Editor/EnemyLevelCompositionTests.cs
+  s_b851883854c146::t_958d6560cf7e58 1-85
+Assets/Project/LightChasePrototype/Editor/LightChaseRebuildAll.cs
+  s_61273eaaef4eaf::t_1189334b6b9e65 10,34-35,37
+  s_b851883854c146::t_befe08298cfbf2 39-40,43
+  s_61273eaaef4eaf::t_cab383f7b37a9d 1-8,17,20,23,31-33,45
+  s_8a5bc78bdca195::t_e4b248c24cbbbc 36
+  s_b851883854c146::t_7fa88fc11ae38e 9,11-16,18-19,21-22,24-30,38,41-42
+  s_b851883854c146::t_cf7a05e409e5ea 44
+Assets/Project/LightChasePrototype/Scripts/Gameplay/EnemyLightSeeker.cs
+  s_b851883854c146::t_8c5fdc7ec89dd2 63
+  s_b851883854c146::t_b0435bca8a8f0f 48-49
+  s_b851883854c146::t_f87c2b96a1e6a3 103,116,135
+  s_b851883854c146::t_5e9a35d7ea7d7b 171,182-202,205-208
+  s_b9a20afaa1a03a::t_7b09fde2125c9d 56,178-179,203-204,209-262
+  s_b851883854c146::t_1e5542ce695060 18
+  s_61273eaaef4eaf::t_913812d416ab3d 15-17,19,36,47,60-61,80-85,161,163,165,168,180-181,266-271,278,280-294,297-298
+Assets/Project/LightChasePrototype/Editor/LightChaseLakeLevelBuilder.cs
+  s_d87bdb0942b1b2::t_850a08b6c49764 1-2,4-21,24-86,88-151,154-155,174-180,182-184,187-191,202-205,209-213,225-226,247-275,282-283,285-295,300,315-318,331-337,348-384,386-646
+  s_bda67c507ff3ba::t_eb9346f230e02c 276-281,284,301-306,313-314
+  s_bda67c507ff3ba::t_a259f4b121e24a 3
+  s_bda67c507ff3ba::t_569b40aa9ad239 194-195,197-201
+  s_bda67c507ff3ba::t_cbaf566f36bda8 307-312
+  s_b851883854c146::t_a90f5cd89f7a53 87
+  s_b851883854c146::t_d983304dedb73a 319-330
+  s_bda67c507ff3ba::t_e257626859658d 192-193,196
+  s_029d74212bc830::t_ed4759a4d0d5db 22-23,152-153,156-173,181,185-186,206-208,214-224,227-246,296-299,338-347,385
+Assets/Project/LightChasePrototype/Scripts/UI/MainMenuController.cs
+  s_4d622b8df28b25::t_4bb15641101d70 29-31
+  s_7e22be4646fd4a::t_320596e78e3e78 45-48
+  s_4d622b8df28b25::t_883ad892be3266 242
+  s_b8219bf7642d52::t_a0d34329e82c59 278-280
+  s_4d622b8df28b25::t_16cbdb86d6a93e 170-172
+  s_7e22be4646fd4a::t_aed6341b783922 630
+  s_4d622b8df28b25::t_b7f577d6fa5c1a 139-140
+  s_7e22be4646fd4a::t_22980fecaad2b2 398
+  s_d87bdb0942b1b2::t_96c2e50960957a 182,687,885,1177,1189,1193,1197-1201
+  s_4d622b8df28b25::t_28777cd6717edc 842-856
+  s_4d622b8df28b25::t_09c2afad877acd 460
+  s_4d622b8df28b25::t_34b0c41e0aecd0 210
+  s_4d622b8df28b25::t_d66a8a935aca75 494-535
+  s_4d622b8df28b25::t_82042f82a29ab0 760-767
+  s_4d622b8df28b25::t_224f44bbd7a846 403
+  s_4d622b8df28b25::t_3964156fdd6109 58
+  s_4d622b8df28b25::t_3e14d639387690 189
+  s_7e22be4646fd4a::t_d71a3fdb0b216f 272,283
+  s_4d622b8df28b25::t_aa449eb191d37f 894-896
+  s_4d622b8df28b25::t_87f8452f1cd537 1271-1304
+  s_4d622b8df28b25::t_f58d815435e8c5 432
+  s_7e22be4646fd4a::t_7a2d4bdb86f083 340-341
+Assets/Project/LightChasePrototype/Tests/Editor/LightChaseLakeLevelBuilderTests.cs.meta
+  s_d87bdb0942b1b2::t_b5b5414824aedb 1-11
+Assets/Project/LightChasePrototype/Editor/LightChaseLakeLevelBuilder.cs.meta
+  s_d87bdb0942b1b2::t_e769b7397cfddd 1-11
+Assets/Project/LightChasePrototype/Tests/EditMode/LightChaseLevelCatalogTests.cs
+  s_d87bdb0942b1b2::t_d04caf259a135a 57,80-105
+Assets/Project/LightChasePrototype/Animation/Enemigo02.controller
+  s_61273eaaef4eaf::t_7e556837d3619c 1-73,75-79
+Assets/Project/LightChasePrototype/Animation/Enemigo02_Walk.anim
+  s_61273eaaef4eaf::t_7e556837d3619c 1-5216,5218-5231
+Assets/Project/LightChasePrototype/Editor/EnemySpawner.cs
+  s_b851883854c146::t_385f487f02c0a1 1-9,20-42,44-46,54-60,67-69,98-125
+  s_b851883854c146::t_8b18be9404eb7e 48,70-97
+  s_b851883854c146::t_9d6a836a71b69c 10-19
+  s_b851883854c146::t_0559d4462b4cef 43,47,49-53,61-66
+Assets/Project/LightChasePrototype/Editor/LightChaseRebuildAll.cs.meta
+  s_61273eaaef4eaf::t_6e30cbaee29ee7 1-2
+Assets/Project/LightChasePrototype/Editor/LightChaseWaterLevelBuilder.cs
+  s_391ebd881ba813::t_d36c0c68bbb9ec 9
+  s_755f9224a60e02::t_d662a08147f63a 22-24,343-344,346,349-350,747,757,766-775,790-792,795-798,806,808
+  s_b851883854c146::t_d0f14595b6470a 111
+  s_755f9224a60e02::t_b0442ad1d73c78 257
+  s_bda67c507ff3ba::t_ee1e6270435ff9 490-491
+  s_bda67c507ff3ba::t_9fcda62591a97a 483-489
+  s_755f9224a60e02::t_114b4a16b11540 840
+  s_d87bdb0942b1b2::t_e5ba19a384f6ba 887-888
+  s_bda67c507ff3ba::t_87b812ff13b47f 3
+  s_b851883854c146::t_8ce47bac2c5718 496-505
+  s_c60d5b4cdf7e35::t_58a18288b30ca0 19,25-28,49,53-60,95-97,154,156-241,244-245,247-250,258-260,263,272,274-275,277,279,289-290,294,297,299-301,303-308,310,312-321,324,326-329,331-338,355,357-363,455-457,459-462,465,469,473,482,494,508-510,513-523,526,531,559,563,591-599,601-611,613-623,626-636,639,641-742,793,825
+Assets/Project/LightChasePrototype/Tests/Editor/EnemyBuilderAvatarTests.cs
+  s_b851883854c146::t_9970ff06c8630a 1-8,10-29
+  s_b851883854c146::t_f1dee3bea31841 9
+Assets/Project/LightChasePrototype/Animation/Enemigo02_Walk.anim.meta
+  s_61273eaaef4eaf::t_7e556837d3619c 1-8
+Assets/Project/LightChasePrototype/Tests/EditMode/EnemyLightSeekerTests.cs
+  s_b9a20afaa1a03a::t_b48f98d0587d95 1-69,71-72,106-107,137-175
+  s_b851883854c146::t_456ab79766c59d 70
+  s_b851883854c146::t_c8a4cd1ebb40e0 108-136
+  s_b851883854c146::t_b9803eaa2e6c34 86
+  s_61273eaaef4eaf::t_76792df8b14233 73-85,87-101,103-105
+  s_b851883854c146::t_34ac6f27da6a51 102
+Assets/MeshyImports/Enemigo_02/Meshy_AI_El_Deshilachador_biped_Animation_Walking_withSkin.fbx.meta
+  s_61273eaaef4eaf::t_4f1f9355ee7310 32
+Assets/Project/LightChasePrototype/Animation/Enemigo02_Material.mat.meta
+  s_61273eaaef4eaf::t_f41e4714dd3936 1-8
+Assets/Project/LightChasePrototype/Editor/EnemyLevelComposition.cs
+  s_b851883854c146::t_eccedaecc697f9 1-63
+Assets/Project/LightChasePrototype/Tests/Editor/EnemySpawnerTests.cs
+  s_b851883854c146::t_2d587a89e8d47d 1-7,17-78
+  s_b851883854c146::t_534542754e643a 8-16
+Assets/Project/LightChasePrototype/Tests/Editor/LightChaseWaterLevelBuilderTests.cs
+  s_b851883854c146::t_fcfd169808bf73 25
+  s_c60d5b4cdf7e35::t_ab668b5deebcbc 91-107
+  s_d87bdb0942b1b2::t_99054a78eaeeb1 12,108,115
+Assets/Project/LightChasePrototype/Editor/LightChaseWaterSurface.cs
+  s_bda67c507ff3ba::t_8a1a348f8dc35f 1-232
+Assets/Project/LightChasePrototype/Tests/Editor/LightChaseNatureLevelBuilderTests.cs
+  s_b851883854c146::t_f748e9d5c8e84d 22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "5c5f818bc1b624dd4471198a9c31d68c1c87766b",
+  "prompts": {},
+  "sessions": {
+    "s_029d74212bc830": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "fc178192-b73e-4563-8227-36b2f235f332",
+        "model": "gpt-5.3-codex"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    },
+    "s_391ebd881ba813": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "0c8a8ab1-4fba-4724-bbdd-1f3058f7fb8e",
+        "model": "gpt-5.3-codex"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    },
+    "s_4d622b8df28b25": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "1d4513f7-b55b-4717-838f-8ea4588420b9",
+        "model": "claude-opus-4-7-high"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    },
+    "s_61273eaaef4eaf": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "91596f35-201a-4445-87c7-8e2cf94f5215",
+        "model": "claude-opus-4-7-high"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    },
+    "s_755f9224a60e02": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "d10c99d8-9313-41af-bef5-906ca69fcc0a",
+        "model": "gpt-5.3-codex"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    },
+    "s_7e22be4646fd4a": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "2064ae96-1acb-4c84-ac2d-f464ecc6a8b2",
+        "model": "claude-opus-4-7-high"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    },
+    "s_8a5bc78bdca195": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "28d0fb50-e3a4-439e-b6d5-aab4be797a9b",
+        "model": "claude-opus-4-7-high"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    },
+    "s_b8219bf7642d52": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "d2c5843f-068c-45ce-8e64-877f33d0b74c",
+        "model": "gpt-5.3-codex"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    },
+    "s_b851883854c146": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "1fb0ce1e-8374-435c-8cdb-5eeb8d7f688c",
+        "model": "claude-opus-4-7-high"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    },
+    "s_b9a20afaa1a03a": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "137038dc-dd3c-4412-94d8-f5223f6bac42",
+        "model": "gpt-5.3-codex"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    },
+    "s_bda67c507ff3ba": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "79d331e8-8914-4fe5-8ef3-c8f7b5980be4",
+        "model": "claude-opus-4-7-high"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    },
+    "s_c60d5b4cdf7e35": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "453ac74c-e708-4f78-b4d8-cc8dcb3c86e1",
+        "model": "claude-opus-4-7-high"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    },
+    "s_d87bdb0942b1b2": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "7842caa2-689c-47b9-83f5-b6532acf09d5",
+        "model": "gpt-5.3-codex"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    }
+  }
+}
