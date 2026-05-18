@@ -19,7 +19,7 @@ public class LightChaseNatureLevelBuilderTests
         Assert.That(GameObject.Find("NatureSetDressing"), Is.Not.Null);
         var enemy = GameObject.Find("LightHunter");
         Assert.That(enemy, Is.Not.Null);
-        Assert.That(enemy.transform.Find("Enemigo_01_Model"), Is.Not.Null);
+        Assert.That(enemy.transform.Find("Enemigo_02_Model"), Is.Not.Null);
 
         var enemyRenderer = enemy.GetComponentInChildren<Renderer>();
         Assert.That(enemyRenderer, Is.Not.Null);

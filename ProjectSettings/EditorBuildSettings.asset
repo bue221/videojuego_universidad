@@ -20,5 +20,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Project/LightChasePrototype/Scenes/MainMenu.unity
     guid: 146fe171cebab4ca0973eee15856ed86
+  - enabled: 1
+    path: Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level04.unity
+    guid: 00000000000000000000000000000000
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

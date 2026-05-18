@@ -9,6 +9,7 @@ public class LightChaseWaterLevelBuilderTests
     private const string PrototypeScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype.unity";
     private const string NatureLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level02.unity";
     private const string WaterLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level03.unity";
+    private const string LakeLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level04.unity";
 
     [Test]
     public void BuildLevel_CreatesScenarioEnvironmentWaterHazardsAndNineStars()
@@ -21,7 +22,7 @@ public class LightChaseWaterLevelBuilderTests
         Assert.That(GameObject.Find("WaterHazards"), Is.Not.Null);
         var enemy = GameObject.Find("LightHunter");
         Assert.That(enemy, Is.Not.Null);
-        Assert.That(enemy.transform.Find("Enemigo_01_Model"), Is.Not.Null);
+        Assert.That(enemy.transform.Find("Enemigo_03_Model"), Is.Not.Null);
 
         var enemyRenderer = enemy.GetComponentInChildren<Renderer>();
         Assert.That(enemyRenderer, Is.Not.Null);
@@ -87,13 +88,31 @@ public class LightChaseWaterLevelBuilderTests
     }
 
     [Test]
-    public void BuildLevel_EnsuresLevelsOneTwoAndThreeAreInBuildSettings()
+    public void BuildLevel_CreatesPlayableTerrainAndKeepLighting()
+    {
+        LightChaseWaterLevelBuilder.BuildLevel();
+
+        var terrain = GameObject.Find("WaterLevelGeometry");
+        Assert.That(terrain, Is.Not.Null, "Level 03 must include a playable terrain root, not just the Meshy keep.");
+        Assert.That(terrain.transform.childCount, Is.GreaterThan(8),
+            "Playable terrain must have multiple ground tiles so the level is not extra small.");
+
+        var lighting = GameObject.Find("WaterLevelLighting");
+        Assert.That(lighting, Is.Not.Null, "Level 03 must add local torch lighting around the keep so it is readable.");
+        var torches = lighting.GetComponentsInChildren<Light>();
+        Assert.That(torches.Length, Is.GreaterThanOrEqualTo(5),
+            "Keep lighting must provide enough warm fill lights to fight the night atmosphere.");
+    }
+
+    [Test]
+    public void BuildLevel_EnsuresLevelsOneToFourAreInBuildSettings()
     {
         LightChaseWaterLevelBuilder.BuildLevel();
 
         Assert.That(HasEnabledScene(PrototypeScenePath), Is.True);
         Assert.That(HasEnabledScene(NatureLevelScenePath), Is.True);
         Assert.That(HasEnabledScene(WaterLevelScenePath), Is.True);
+        Assert.That(HasEnabledScene(LakeLevelScenePath), Is.True);
     }
 
     [Test]

@@ -5,6 +5,7 @@ using Unity.AI.Navigation;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 
@@ -14,6 +15,7 @@ public static class LightChaseNatureLevelBuilder
     private const string NatureLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level02.unity";
     private const string PrototypeLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype.unity";
     private const string WaterLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level03.unity";
+    private const string LakeLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level04.unity";
     private const string PlayerPrefabPath = "Assets/ThirdParty/StarterAssets/ThirdPersonController/Prefabs/PlayerArmature.prefab";
     private const string CameraPrefabPath = "Assets/ThirdParty/StarterAssets/ThirdPersonController/Prefabs/PlayerFollowCamera.prefab";
     private static readonly Vector3 NatureSpawnPosition = new(-24f, 1.15f, -20f);
@@ -80,6 +82,7 @@ public static class LightChaseNatureLevelBuilder
         DestroyIfExists("GlobalUIRoot");
         DestroyIfExists("ExitPortal");
         DestroyIfExists("LightHunter");
+        DestroyIfExists("LightHunters");
         DestroyComponentOfType<EnemyLightSeeker>();
         DestroyComponentOfType<ExitPortal>();
         DestroyComponentOfType<PrototypeLevelManager>();
@@ -245,11 +248,14 @@ public static class LightChaseNatureLevelBuilder
 
     private static void ConfigureEnemy()
     {
-        var enemyObject = EnemyBuilder.BuildEnemyRoot("LightHunter", new Vector3(8f, 0f, 7f));
-        EnemyBuilder.AlignBaseToY(enemyObject, 0f);
-        enemyObject.transform.position += Vector3.up * 0.02f;
-        EnemyBuilder.ConfigureNavMeshAgent(enemyObject);
-        EnemyBuilder.ConfigureEnemyLightSeeker(enemyObject);
+        var anchors = new[]
+        {
+            new Vector3(8f, 0f, 7f),
+            new Vector3(-9f, 0f, -6f)
+        };
+
+        var spawns = EnemyLevelComposition.BuildSpawns(EnemyLevelComposition.LevelTier.Level02, anchors);
+        EnemySpawner.SpawnEnemies(spawns);
     }
 
     private static void ConfigureStars()
@@ -616,7 +622,8 @@ public static class LightChaseNatureLevelBuilder
         {
             PrototypeLevelScenePath,
             NatureLevelScenePath,
-            WaterLevelScenePath
+            WaterLevelScenePath,
+            LakeLevelScenePath
         };
 
         var existingScenes = EditorBuildSettings.scenes;

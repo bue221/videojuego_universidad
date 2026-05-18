@@ -10,6 +10,7 @@ namespace LightChasePrototype
         public const string PrototypeLevelId = "prototype-level-01";
         public const string NatureLevelId = "prototype-level-02";
         public const string WaterLevelId = "prototype-level-03";
+        public const string LakeLevelId = "prototype-level-04";
 
         public static readonly LevelOption[] Options =
         {
@@ -27,7 +28,12 @@ namespace LightChasePrototype
                 WaterLevelId,
                 "Nivel 3",
                 "LightChasePrototype_Level03",
-                "Escenario costero importado desde escenario_3, con pasos inundados donde avanzar hunde parcialmente al avatar.")
+                "Escenario costero importado desde MeshyImports/Escena3, con pasos inundados donde avanzar hunde parcialmente al avatar."),
+            new(
+                LakeLevelId,
+                "Nivel 4",
+                "LightChasePrototype_Level04",
+                "Circuito alrededor de un lago amplio: rutas seguras largas o atajos por muelles y zonas inundadas con mayor exposicion.")
         };
 
         public static string SelectedLevelId

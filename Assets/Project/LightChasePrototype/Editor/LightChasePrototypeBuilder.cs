@@ -5,8 +5,8 @@ using Unity.AI.Navigation;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.Rendering;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public static class LightChasePrototypeBuilder
@@ -15,6 +15,7 @@ public static class LightChasePrototypeBuilder
     private const string PrototypeScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype.unity";
     private const string NatureLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level02.unity";
     private const string WaterLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level03.unity";
+    private const string LakeLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level04.unity";
     private const string PlayerPrefabPath = "Assets/ThirdParty/StarterAssets/ThirdPersonController/Prefabs/PlayerArmature.prefab";
     private const string CameraPrefabPath = "Assets/ThirdParty/StarterAssets/ThirdPersonController/Prefabs/PlayerFollowCamera.prefab";
     private const string GridWhiteMaterialPath = "Assets/ThirdParty/StarterAssets/Environment/Art/Materials/GridWhite_01_Mat.mat";
@@ -43,22 +44,6 @@ public static class LightChasePrototypeBuilder
         Debug.Log($"Light Chase prototype listo en {PrototypeScenePath}");
     }
 
-    [MenuItem("Tools/Prototype/Apply Suspense Atmosphere")]
-    public static void ApplySuspenseAtmosphere()
-    {
-        var scene = SceneManager.GetActiveScene();
-        if (!scene.IsValid() || !scene.isLoaded)
-        {
-            Debug.LogWarning("No hay una escena cargada para aplicar la atmosfera.");
-            return;
-        }
-
-        ConfigureAtmosphere();
-        EditorSceneManager.MarkSceneDirty(scene);
-        EditorSceneManager.SaveScene(scene);
-        Debug.Log($"Atmosfera de suspenso aplicada en {scene.path}");
-    }
-
     private static void EnsurePrototypeSceneExists()
     {
         if (File.Exists(PrototypeScenePath))
@@ -79,6 +64,7 @@ public static class LightChasePrototypeBuilder
         DestroyIfExists("GlobalUIRoot");
         DestroyIfExists("ExitPortal");
         DestroyIfExists("LightHunter");
+        DestroyIfExists("LightHunters");
         DestroyComponentOfType<EnemyLightSeeker>();
         DestroyComponentOfType<ExitPortal>();
         DestroyComponentOfType<PrototypeLevelManager>();
@@ -162,15 +148,13 @@ public static class LightChasePrototypeBuilder
 
     private static void ConfigureEnemy(Transform playerTransform)
     {
-        var enemy = Object.FindAnyObjectByType<EnemyLightSeeker>();
-        if (enemy == null)
+        var anchors = new[]
         {
-            var enemyObject = EnemyBuilder.BuildEnemyRoot("LightHunter", new Vector3(12f, 0f, 11f));
-            EnemyBuilder.AlignBaseToY(enemyObject, 0f);
-            enemyObject.transform.position += Vector3.up * 0.02f;
-            EnemyBuilder.ConfigureNavMeshAgent(enemyObject);
-            enemy = EnemyBuilder.ConfigureEnemyLightSeeker(enemyObject);
-        }
+            new Vector3(12f, 0f, 11f)
+        };
+
+        var spawns = EnemyLevelComposition.BuildSpawns(EnemyLevelComposition.LevelTier.Level01, anchors);
+        EnemySpawner.SpawnEnemies(spawns);
     }
 
     private static void ConfigureStars()
@@ -359,7 +343,8 @@ public static class LightChasePrototypeBuilder
         {
             PrototypeScenePath,
             NatureLevelScenePath,
-            WaterLevelScenePath
+            WaterLevelScenePath,
+            LakeLevelScenePath
         };
 
         var existingScenes = EditorBuildSettings.scenes;

@@ -1,4 +1,5 @@
 using System.IO;
+using LightChasePrototype;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
@@ -6,115 +7,221 @@ using UnityEngine.AI;
 
 public static class EnemyBuilder
 {
-    public const string Enemy01ModelPath = "Assets/MeshyImports/Enemigo_01/Meshy_AI_El_Director_biped_Animation_Walking_withSkin.fbx";
-    public const string Enemy01MaterialPath = "Assets/MeshyImports/Enemigo_01/Material_1.mat";
-    private const string AnimationFolder = "Assets/Project/LightChasePrototype/Animation";
-    private const string WalkClipPath = "Assets/Project/LightChasePrototype/Animation/Enemigo01_Walk.anim";
-    private const string ControllerPath = "Assets/Project/LightChasePrototype/Animation/Enemigo01.controller";
+    public const EnemyKind DefaultEnemyKind = EnemyKind.Deshilachador;
+
+    // Legacy aliases kept so older callers and tests keep compiling. They resolve to the
+    // default enemy kind assets, but new code should use EnemyKindCatalog.GetAssets(kind).
+    public static string Enemy01ModelPath => EnemyKindCatalog.GetAssets(DefaultEnemyKind).ModelPath;
+    public static string Enemy01MaterialPath => EnemyKindCatalog.GetAssets(DefaultEnemyKind).MaterialPath;
+
+    private const string UrpLitShaderName = "Universal Render Pipeline/Lit";
+
+    private const float EnemyVisualHeight = 2.2f;
+    private const float NavMeshAgentRadius = 0.45f;
+    private const float NavMeshAgentHeight = 2.2f;
 
     public static GameObject BuildEnemyRoot(string objectName, Vector3 position)
     {
+        return BuildEnemyRoot(DefaultEnemyKind, objectName, position);
+    }
+
+    public static GameObject BuildEnemyRoot(EnemyKind kind, string objectName, Vector3 position)
+    {
+        var assets = EnemyKindCatalog.GetAssets(kind);
         var root = new GameObject(objectName);
         root.transform.position = position;
 
-        var modelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(Enemy01ModelPath);
-        if (modelPrefab != null)
+        GameObject modelInstance = TryInstantiateEnemyModel(root.transform, assets);
+        if (modelInstance == null)
         {
-            var modelInstance = PrefabUtility.InstantiatePrefab(modelPrefab) as GameObject;
-            if (modelInstance == null)
-            {
-                modelInstance = Object.Instantiate(modelPrefab);
-            }
-
-            modelInstance.name = "Enemigo_01_Model";
-            modelInstance.transform.SetParent(root.transform, false);
-            ApplyEnemy01Material(modelInstance);
-            NormalizeModelHeight(modelInstance.transform, 2.2f);
-        }
-        else
-        {
-            var fallback = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            fallback.name = "FallbackEnemy";
-            fallback.transform.SetParent(root.transform, false);
-            fallback.transform.localScale = new Vector3(1.2f, 1.4f, 1.2f);
+            Debug.LogError($"[EnemyBuilder] Could not instantiate enemy model for kind '{kind}' from {assets.ModelPath}. Skipping enemy '{objectName}'.");
+            Object.DestroyImmediate(root);
+            return null;
         }
 
-        ConfigureAnimator(root);
+        ConfigureAnimator(modelInstance, assets);
         ConfigureEnemyLight(root);
+        ConfigureBodyCollider(root);
         return root;
     }
 
-    public static void ConfigureAnimator(GameObject enemyRoot)
+    private static GameObject TryInstantiateEnemyModel(Transform parent, EnemyKindAssets assets)
     {
-        EnsureAnimationFolderExists();
-        var walkClip = GetOrCreateWalkClip();
-        var controller = GetOrCreateAnimatorController(walkClip);
-        var animator = enemyRoot.GetComponent<Animator>();
-        if (animator == null)
-        {
-            animator = enemyRoot.AddComponent<Animator>();
-        }
-
-        animator.runtimeAnimatorController = controller;
-    }
-
-    private static void EnsureAnimationFolderExists()
-    {
-        if (!AssetDatabase.IsValidFolder(AnimationFolder))
-        {
-            var parent = Path.GetDirectoryName(AnimationFolder);
-            var name = Path.GetFileName(AnimationFolder);
-            AssetDatabase.CreateFolder(parent, name);
-        }
-    }
-
-    private static AnimationClip GetOrCreateWalkClip()
-    {
-        var existing = AssetDatabase.LoadAssetAtPath<AnimationClip>(WalkClipPath);
-        if (existing != null)
-        {
-            return existing;
-        }
-
-        var sourceClip = ExtractClipFromFbx();
-        if (sourceClip != null)
-        {
-            var clone = Object.Instantiate(sourceClip);
-            clone.name = "Enemigo01_Walk";
-            AssetDatabase.CreateAsset(clone, WalkClipPath);
-            AssetDatabase.SaveAssets();
-            return clone;
-        }
-
-        return CreateFallbackClip();
-    }
-
-    private static AnimationClip ExtractClipFromFbx()
-    {
-        var importer = AssetImporter.GetAtPath(Enemy01ModelPath) as ModelImporter;
-        if (importer == null)
+        var modelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(assets.ModelPath);
+        if (modelPrefab == null)
         {
             return null;
         }
 
-        if (importer.clipAnimations == null || importer.clipAnimations.Length == 0)
+        var modelInstance = PrefabUtility.InstantiatePrefab(modelPrefab) as GameObject;
+        if (modelInstance == null)
         {
-            var so = new SerializedObject(importer);
-            var clipsProp = so.FindProperty("m_ClipAnimations");
-            clipsProp.arraySize = 1;
-            var clipProp = clipsProp.GetArrayElementAtIndex(0);
-            clipProp.FindPropertyRelative("name").stringValue = "Walk";
-            clipProp.FindPropertyRelative("loopTime").boolValue = true;
-            clipProp.FindPropertyRelative("loop").boolValue = true;
-            clipProp.FindPropertyRelative("takeName").stringValue = "";
-            so.ApplyModifiedPropertiesWithoutUndo();
-            importer.SaveAndReimport();
+            modelInstance = Object.Instantiate(modelPrefab);
+        }
+        else
+        {
+            PrefabUtility.UnpackPrefabInstance(modelInstance, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
         }
 
-        var subAssets = AssetDatabase.LoadAllAssetRepresentationsAtPath(Enemy01ModelPath);
-        foreach (var sub in subAssets)
+        modelInstance.name = assets.ModelObjectName;
+        modelInstance.transform.SetParent(parent, false);
+        modelInstance.transform.localPosition = Vector3.zero;
+        modelInstance.transform.localRotation = Quaternion.identity;
+
+        ApplyEnemyMaterial(modelInstance, assets);
+        NormalizeModelHeight(modelInstance.transform, EnemyVisualHeight);
+        AlignModelFeetToParent(modelInstance.transform);
+        return modelInstance;
+    }
+
+    public static void ConfigureAnimator(GameObject animatorOwner)
+    {
+        ConfigureAnimator(animatorOwner, EnemyKindCatalog.GetAssets(DefaultEnemyKind));
+    }
+
+    public static void ConfigureAnimator(GameObject animatorOwner, EnemyKindAssets assets)
+    {
+        if (animatorOwner == null)
         {
-            if (sub is AnimationClip clip)
+            return;
+        }
+
+        EnsureAnimationFolderExists();
+        var walkClip = GetOrCreateWalkClip(assets);
+        var controller = GetOrCreateAnimatorController(assets, walkClip);
+        var animator = animatorOwner.GetComponent<Animator>();
+        if (animator == null)
+        {
+            animator = animatorOwner.AddComponent<Animator>();
+        }
+
+        animator.runtimeAnimatorController = controller;
+        animator.avatar = LoadEnemyAvatar(assets);
+        animator.applyRootMotion = false;
+        animator.updateMode = AnimatorUpdateMode.Normal;
+        animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+    }
+
+    // One-shot prepare step. Designed to be called once per editor session (e.g. from
+    // Tools → Prototype → Rebuild All Levels) BEFORE any level builder runs, so that the
+    // FBX is reimported at most once per kind even if multiple enemies are spawned later.
+    //
+    // We deliberately DO NOT touch importer.clipAnimations here. Writing a partially
+    // initialised override array (e.g. just flipping loopTime on a default-constructed
+    // ModelImporterClipAnimation) corrupts the importer state and crashes Unity natively
+    // inside ModelImporter::SplitAnimationClips. The walk loop is guaranteed downstream
+    // by cloning the clip into a project asset and setting loopTime on that copy.
+    public static void PrepareEnemyKindAssets(EnemyKindAssets assets)
+    {
+        var importer = AssetImporter.GetAtPath(assets.ModelPath) as ModelImporter;
+        if (importer == null)
+        {
+            return;
+        }
+
+        var needsReimport = false;
+        if (importer.animationType == ModelImporterAnimationType.None)
+        {
+            importer.animationType = ModelImporterAnimationType.Generic;
+            needsReimport = true;
+        }
+
+        if (importer.avatarSetup == ModelImporterAvatarSetup.NoAvatar)
+        {
+            importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
+            needsReimport = true;
+        }
+
+        if (needsReimport)
+        {
+            importer.SaveAndReimport();
+        }
+    }
+
+    private static Avatar LoadEnemyAvatar(EnemyKindAssets assets)
+    {
+        foreach (var sub in AssetDatabase.LoadAllAssetsAtPath(assets.ModelPath))
+        {
+            if (sub is Avatar avatar && avatar.isValid)
+            {
+                return avatar;
+            }
+        }
+
+        return null;
+    }
+
+    private static void EnsureAnimationFolderExists()
+    {
+        const string animationFolder = "Assets/Project/LightChasePrototype/Animation";
+        if (!AssetDatabase.IsValidFolder(animationFolder))
+        {
+            var parent = Path.GetDirectoryName(animationFolder);
+            var name = Path.GetFileName(animationFolder);
+            AssetDatabase.CreateFolder(parent, name);
+        }
+    }
+
+    private static AnimationClip GetOrCreateWalkClip(EnemyKindAssets assets)
+    {
+        // Use a project-owned clone of the FBX clip so we can safely flip loopTime
+        // without modifying the model importer (which crashes the editor when fed
+        // partially initialised override arrays).
+        var existing = AssetDatabase.LoadAssetAtPath<AnimationClip>(assets.WalkClipPath);
+        if (existing != null)
+        {
+            EnsureClipLoops(existing);
+            return existing;
+        }
+
+        var sourceClip = ExtractClipFromFbx(assets);
+        if (sourceClip != null)
+        {
+            var clone = Object.Instantiate(sourceClip);
+            clone.name = Path.GetFileNameWithoutExtension(assets.WalkClipPath);
+            AssetDatabase.CreateAsset(clone, assets.WalkClipPath);
+            EnsureClipLoops(clone);
+            return clone;
+        }
+
+        return CreateFallbackClip(assets);
+    }
+
+    private static void EnsureClipLoops(AnimationClip clip)
+    {
+        var settings = AnimationUtility.GetAnimationClipSettings(clip);
+        if (settings.loopTime)
+        {
+            return;
+        }
+
+        settings.loopTime = true;
+        AnimationUtility.SetAnimationClipSettings(clip, settings);
+        EditorUtility.SetDirty(clip);
+    }
+
+    private static AnimationClip ExtractClipFromFbx(EnemyKindAssets assets)
+    {
+        AnimationClip best = null;
+        foreach (var sub in AssetDatabase.LoadAllAssetRepresentationsAtPath(assets.ModelPath))
+        {
+            if (sub is AnimationClip clip && IsUsableClip(clip))
+            {
+                if (best == null || clip.length > best.length)
+                {
+                    best = clip;
+                }
+            }
+        }
+
+        if (best != null)
+        {
+            return best;
+        }
+
+        foreach (var sub in AssetDatabase.LoadAllAssetsAtPath(assets.ModelPath))
+        {
+            if (sub is AnimationClip clip && IsUsableClip(clip))
             {
                 return clip;
             }
@@ -123,10 +230,17 @@ public static class EnemyBuilder
         return null;
     }
 
-    private static AnimationClip CreateFallbackClip()
+    private static bool IsUsableClip(AnimationClip clip)
+    {
+        return clip != null
+            && !clip.name.StartsWith("__preview__")
+            && clip.length > 0.05f;
+    }
+
+    private static AnimationClip CreateFallbackClip(EnemyKindAssets assets)
     {
         var clip = new AnimationClip();
-        clip.name = "Enemigo01_Walk";
+        clip.name = Path.GetFileNameWithoutExtension(assets.WalkClipPath);
         clip.frameRate = 30;
         clip.wrapMode = WrapMode.Loop;
         var curve = new AnimationCurve(
@@ -134,87 +248,357 @@ public static class EnemyBuilder
             new Keyframe(0.5f, 0.1f),
             new Keyframe(1f, 0f));
         clip.SetCurve("", typeof(Transform), "localPosition.x", curve);
-        AssetDatabase.CreateAsset(clip, WalkClipPath);
+        AssetDatabase.CreateAsset(clip, assets.WalkClipPath);
         AssetDatabase.SaveAssets();
         return clip;
     }
 
-    private static RuntimeAnimatorController GetOrCreateAnimatorController(AnimationClip clip)
+    private static RuntimeAnimatorController GetOrCreateAnimatorController(EnemyKindAssets assets, AnimationClip clip)
     {
-        var existing = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(ControllerPath);
-        if (existing != null)
+        var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(assets.ControllerPath);
+
+        // If the on-disk controller is corrupt (empty state machine slot), nuke it and
+        // recreate from scratch. This recovers from past failed runs without leaving the
+        // Animator emitting "Statemachine for layer 'Base Layer' is missing" every frame.
+        if (controller != null && IsControllerBaseLayerEmpty(controller))
         {
-            return existing;
+            AssetDatabase.DeleteAsset(assets.ControllerPath);
+            controller = null;
         }
 
-        var controller = AnimatorController.CreateAnimatorControllerAtPath(ControllerPath);
-        controller.AddParameter("Speed", AnimatorControllerParameterType.Float);
+        var createdNow = false;
+        if (controller == null)
+        {
+            controller = AnimatorController.CreateAnimatorControllerAtPath(assets.ControllerPath);
+            createdNow = true;
+        }
 
-        var rootStateMachine = controller.layers[0].stateMachine;
-        var walkState = rootStateMachine.AddState("Walk");
-        walkState.motion = clip;
-        walkState.speedParameter = "Speed";
-        walkState.speedParameterActive = true;
-        rootStateMachine.defaultState = walkState;
+        var paramChanged = EnsureSpeedParameter(controller);
+        var stateChanged = EnsureWalkState(controller, clip);
 
-        AssetDatabase.SaveAssets();
+        if (createdNow || paramChanged || stateChanged)
+        {
+            EditorUtility.SetDirty(controller);
+        }
+
         return controller;
+    }
+
+    private static bool IsControllerBaseLayerEmpty(AnimatorController controller)
+    {
+        var layers = controller.layers;
+        if (layers == null || layers.Length == 0)
+        {
+            return true;
+        }
+
+        return layers[0].stateMachine == null;
+    }
+
+    private static AnimatorStateMachine EnsureBaseLayerStateMachine(AnimatorController controller, out bool created)
+    {
+        created = false;
+        var layers = controller.layers;
+        if (layers == null || layers.Length == 0)
+        {
+            controller.AddLayer("Base Layer");
+            layers = controller.layers;
+            created = true;
+        }
+
+        if (layers[0].stateMachine == null)
+        {
+            var stateMachine = new AnimatorStateMachine
+            {
+                name = string.IsNullOrEmpty(layers[0].name) ? "Base Layer" : layers[0].name,
+                hideFlags = HideFlags.HideInHierarchy
+            };
+            AssetDatabase.AddObjectToAsset(stateMachine, controller);
+            layers[0].stateMachine = stateMachine;
+            controller.layers = layers;
+            created = true;
+        }
+
+        return controller.layers[0].stateMachine;
+    }
+
+    private static bool EnsureSpeedParameter(AnimatorController controller)
+    {
+        foreach (var param in controller.parameters)
+        {
+            if (param.name == "Speed" && param.type == AnimatorControllerParameterType.Float)
+            {
+                return false;
+            }
+        }
+
+        controller.AddParameter("Speed", AnimatorControllerParameterType.Float);
+        return true;
+    }
+
+    private static bool EnsureWalkState(AnimatorController controller, AnimationClip clip)
+    {
+        var stateMachine = EnsureBaseLayerStateMachine(controller, out var layerCreated);
+        var changedAtStart = layerCreated;
+
+        AnimatorState walkState = null;
+        foreach (var child in stateMachine.states)
+        {
+            if (child.state != null && child.state.name == "Walk")
+            {
+                walkState = child.state;
+                break;
+            }
+        }
+
+        var changed = changedAtStart;
+        if (walkState == null)
+        {
+            walkState = stateMachine.AddState("Walk");
+            changed = true;
+        }
+
+        if (walkState.motion != clip)
+        {
+            walkState.motion = clip;
+            changed = true;
+        }
+
+        if (walkState.speedParameter != "Speed")
+        {
+            walkState.speedParameter = "Speed";
+            changed = true;
+        }
+
+        if (!walkState.speedParameterActive)
+        {
+            walkState.speedParameterActive = true;
+            changed = true;
+        }
+
+        if (stateMachine.defaultState != walkState)
+        {
+            stateMachine.defaultState = walkState;
+            changed = true;
+        }
+
+        return changed;
     }
 
     public static void ConfigureEnemyLight(GameObject enemyRoot)
     {
         var lightTransform = enemyRoot.transform.Find("EnemyGlow");
+        GameObject lightObject;
         if (lightTransform != null)
         {
-            return;
+            lightObject = lightTransform.gameObject;
+        }
+        else
+        {
+            lightObject = new GameObject("EnemyGlow");
+            lightObject.transform.SetParent(enemyRoot.transform, false);
         }
 
-        var lightObject = new GameObject("EnemyGlow");
-        lightObject.transform.SetParent(enemyRoot.transform, false);
-        lightObject.transform.localPosition = new Vector3(0f, 2.4f, -0.6f);
+        lightObject.transform.localPosition = new Vector3(0f, 1.7f, 0.35f);
+        lightObject.transform.localRotation = Quaternion.Euler(15f, 0f, 0f);
 
-        var light = lightObject.AddComponent<Light>();
-        light.type = LightType.Point;
-        light.range = 5f;
-        light.intensity = 0.7f;
-        light.color = new Color(0.95f, 0.85f, 0.7f);
-        light.shadows = LightShadows.None;
+        var light = lightObject.GetComponent<Light>();
+        if (light == null)
+        {
+            light = lightObject.AddComponent<Light>();
+        }
+
+        light.type = LightType.Spot;
+        light.range = 9f;
+        light.spotAngle = 70f;
+        light.innerSpotAngle = 35f;
+        light.intensity = 2.4f;
+        light.color = new Color(1f, 0.78f, 0.55f);
+        light.shadows = LightShadows.Soft;
+        light.shadowStrength = 0.6f;
+        light.renderMode = LightRenderMode.Auto;
+
+        EnsureBodyGlow(enemyRoot);
+    }
+
+    private static void EnsureBodyGlow(GameObject enemyRoot)
+    {
+        var bodyGlowTransform = enemyRoot.transform.Find("EnemyBodyGlow");
+        GameObject bodyGlow;
+        if (bodyGlowTransform != null)
+        {
+            bodyGlow = bodyGlowTransform.gameObject;
+        }
+        else
+        {
+            bodyGlow = new GameObject("EnemyBodyGlow");
+            bodyGlow.transform.SetParent(enemyRoot.transform, false);
+        }
+
+        bodyGlow.transform.localPosition = new Vector3(0f, 1.2f, 0f);
+        bodyGlow.transform.localRotation = Quaternion.identity;
+
+        var pointLight = bodyGlow.GetComponent<Light>();
+        if (pointLight == null)
+        {
+            pointLight = bodyGlow.AddComponent<Light>();
+        }
+
+        pointLight.type = LightType.Point;
+        pointLight.range = 4.5f;
+        pointLight.intensity = 1.1f;
+        pointLight.color = new Color(1f, 0.55f, 0.3f);
+        pointLight.shadows = LightShadows.None;
+        pointLight.renderMode = LightRenderMode.Auto;
     }
 
     public static void ApplyEnemy01Material(GameObject modelInstance)
+    {
+        ApplyEnemyMaterial(modelInstance, EnemyKindCatalog.GetAssets(DefaultEnemyKind));
+    }
+
+    public static void ApplyEnemyMaterial(GameObject modelInstance, EnemyKindAssets assets)
     {
         if (modelInstance == null)
         {
             return;
         }
 
-        var material = AssetDatabase.LoadAssetAtPath<Material>(Enemy01MaterialPath);
+        var material = GetOrCreateEnemyMaterial(assets);
         if (material == null)
         {
+            Debug.LogWarning($"[EnemyBuilder] No se pudo crear el material en {assets.MaterialPath}");
             return;
         }
 
-        foreach (var renderer in modelInstance.GetComponentsInChildren<Renderer>(true))
+        var renderers = modelInstance.GetComponentsInChildren<Renderer>(true);
+        Debug.Log($"[EnemyBuilder] Aplicando {material.name} a {renderers.Length} renderer(s) en {modelInstance.name}");
+
+        foreach (var renderer in renderers)
         {
             if (renderer == null)
             {
                 continue;
             }
 
-            var shared = renderer.sharedMaterials;
-            if (shared == null || shared.Length == 0)
+            var slotCount = Mathf.Max(1, renderer.sharedMaterials?.Length ?? 1);
+            var replacement = new Material[slotCount];
+            for (var i = 0; i < slotCount; i++)
             {
-                renderer.sharedMaterial = material;
-                continue;
+                replacement[i] = material;
             }
 
-            for (var i = 0; i < shared.Length; i++)
-            {
-                shared[i] = material;
-            }
-
-            renderer.sharedMaterials = shared;
+            renderer.sharedMaterials = replacement;
         }
+    }
+
+    private static Material GetOrCreateEnemyMaterial(EnemyKindAssets assets)
+    {
+        EnsureAnimationFolderExists();
+        var existing = AssetDatabase.LoadAssetAtPath<Material>(assets.MaterialPath);
+        var createdNow = false;
+        if (existing == null)
+        {
+            var shader = Shader.Find(UrpLitShaderName);
+            if (shader == null)
+            {
+                Debug.LogWarning($"[EnemyBuilder] Shader '{UrpLitShaderName}' no encontrado en el proyecto.");
+                return null;
+            }
+
+            existing = new Material(shader) { name = Path.GetFileNameWithoutExtension(assets.MaterialPath) };
+            AssetDatabase.CreateAsset(existing, assets.MaterialPath);
+            createdNow = true;
+        }
+
+        // Always verify texture bindings: a material may exist from a previous run that
+        // failed before assigning maps. Reconfigure only if the expected albedo is missing
+        // or has drifted from the asset on disk.
+        if (createdNow || NeedsTextureReconfiguration(existing, assets))
+        {
+            ConfigureEnemyMaterialMaps(existing, assets);
+            EditorUtility.SetDirty(existing);
+        }
+
+        return existing;
+    }
+
+    private static bool NeedsTextureReconfiguration(Material material, EnemyKindAssets assets)
+    {
+        var expectedAlbedo = AssetDatabase.LoadAssetAtPath<Texture2D>(assets.AlbedoPath);
+        if (expectedAlbedo == null)
+        {
+            return false;
+        }
+
+        return material.GetTexture("_BaseMap") != expectedAlbedo;
+    }
+
+    private static void ConfigureEnemyMaterialMaps(Material material, EnemyKindAssets assets)
+    {
+        var albedo = AssetDatabase.LoadAssetAtPath<Texture2D>(assets.AlbedoPath);
+        var normal = AssetDatabase.LoadAssetAtPath<Texture2D>(assets.NormalPath);
+        var metallic = AssetDatabase.LoadAssetAtPath<Texture2D>(assets.MetallicPath);
+
+        EnsureNormalMapTextureType(assets.NormalPath);
+
+        if (albedo != null)
+        {
+            material.SetTexture("_BaseMap", albedo);
+            material.SetTexture("_MainTex", albedo);
+        }
+
+        if (normal != null)
+        {
+            material.SetTexture("_BumpMap", normal);
+            material.EnableKeyword("_NORMALMAP");
+            material.SetFloat("_BumpScale", 1f);
+        }
+        else
+        {
+            material.DisableKeyword("_NORMALMAP");
+        }
+
+        if (metallic != null)
+        {
+            material.SetTexture("_MetallicGlossMap", metallic);
+            material.EnableKeyword("_METALLICSPECGLOSSMAP");
+            material.SetFloat("_Metallic", 1f);
+        }
+        else
+        {
+            material.DisableKeyword("_METALLICSPECGLOSSMAP");
+            material.SetFloat("_Metallic", 0f);
+        }
+
+        material.SetColor("_BaseColor", Color.white);
+        material.SetColor("_Color", Color.white);
+        material.SetFloat("_Smoothness", 0.55f);
+        material.SetFloat("_SmoothnessTextureChannel", 0f);
+        material.SetFloat("_WorkflowMode", 1f);
+        material.SetFloat("_Surface", 0f);
+        material.SetFloat("_Cull", 2f);
+        material.SetFloat("_ReceiveShadows", 1f);
+        material.SetFloat("_EnvironmentReflections", 1f);
+        material.SetColor("_EmissionColor", Color.black);
+        material.DisableKeyword("_EMISSION");
+    }
+
+    private static void EnsureNormalMapTextureType(string texturePath)
+    {
+        var importer = AssetImporter.GetAtPath(texturePath) as TextureImporter;
+        if (importer == null)
+        {
+            return;
+        }
+
+        if (importer.textureType == TextureImporterType.NormalMap)
+        {
+            return;
+        }
+
+        importer.textureType = TextureImporterType.NormalMap;
+        importer.SaveAndReimport();
     }
 
     public static void NormalizeModelHeight(Transform modelRoot, float targetHeight)
@@ -246,6 +630,30 @@ public static class EnemyBuilder
         modelRoot.localScale *= factor;
     }
 
+    private static void AlignModelFeetToParent(Transform modelRoot)
+    {
+        if (modelRoot == null || modelRoot.parent == null)
+        {
+            return;
+        }
+
+        var renderers = modelRoot.GetComponentsInChildren<Renderer>();
+        if (renderers == null || renderers.Length == 0)
+        {
+            return;
+        }
+
+        var bounds = renderers[0].bounds;
+        for (var i = 1; i < renderers.Length; i++)
+        {
+            bounds.Encapsulate(renderers[i].bounds);
+        }
+
+        var parentY = modelRoot.parent.position.y;
+        var delta = parentY - bounds.min.y;
+        modelRoot.localPosition += new Vector3(0f, delta, 0f);
+    }
+
     public static void AlignBaseToY(GameObject root, float targetY)
     {
         if (root == null)
@@ -271,23 +679,67 @@ public static class EnemyBuilder
 
     public static void ConfigureNavMeshAgent(GameObject enemyObject)
     {
-        var agent = enemyObject.AddComponent<NavMeshAgent>();
+        var agent = enemyObject.GetComponent<NavMeshAgent>();
+        if (agent == null)
+        {
+            agent = enemyObject.AddComponent<NavMeshAgent>();
+        }
+
+        agent.radius = NavMeshAgentRadius;
+        agent.height = NavMeshAgentHeight;
+        agent.baseOffset = 0f;
         agent.angularSpeed = 240f;
         agent.acceleration = 24f;
         agent.stoppingDistance = 1.35f;
+        agent.autoBraking = true;
+        agent.autoTraverseOffMeshLink = true;
+        agent.obstacleAvoidanceType = ObstacleAvoidanceType.MedQualityObstacleAvoidance;
+    }
+
+    private static void ConfigureBodyCollider(GameObject enemyRoot)
+    {
+        var collider = enemyRoot.GetComponent<CapsuleCollider>();
+        if (collider == null)
+        {
+            collider = enemyRoot.AddComponent<CapsuleCollider>();
+        }
+
+        collider.isTrigger = false;
+        collider.center = new Vector3(0f, NavMeshAgentHeight * 0.5f, 0f);
+        collider.height = NavMeshAgentHeight;
+        collider.radius = NavMeshAgentRadius;
+        collider.direction = 1;
     }
 
     public static EnemyLightSeeker ConfigureEnemyLightSeeker(GameObject enemyObject)
     {
-        var enemy = enemyObject.AddComponent<EnemyLightSeeker>();
+        var enemy = enemyObject.GetComponent<EnemyLightSeeker>();
+        if (enemy == null)
+        {
+            enemy = enemyObject.AddComponent<EnemyLightSeeker>();
+        }
+
         var renderer = enemyObject.GetComponentInChildren<Renderer>();
         enemy.ConfigureRenderer(renderer);
-        var glowLight = enemyObject.GetComponentInChildren<Light>();
-        if (glowLight != null)
+
+        var spotGlow = FindLightByChildName(enemyObject.transform, "EnemyGlow");
+        if (spotGlow != null)
         {
-            enemy.ConfigureGlow(glowLight);
+            enemy.ConfigureGlow(spotGlow);
+        }
+
+        var bodyGlow = FindLightByChildName(enemyObject.transform, "EnemyBodyGlow");
+        if (bodyGlow != null)
+        {
+            enemy.ConfigureBodyGlow(bodyGlow);
         }
 
         return enemy;
+    }
+
+    private static Light FindLightByChildName(Transform root, string childName)
+    {
+        var child = root.Find(childName);
+        return child != null ? child.GetComponent<Light>() : null;
     }
 }

@@ -102,6 +102,15 @@ namespace LightChasePrototype.UI
             BindLevelManager(levelManager);
             gameHudController = GameHudController.EnsureHudExists(levelManager, transform);
             gameHudController.BindLevelManager(levelManager);
+
+            // When entering a gameplay scene we always start with the menu
+            // hidden so the auto-advance flow between levels never re-opens
+            // the main menu in the middle of a run.
+            if (levelManager != null)
+            {
+                mainMenuController.HideMenu();
+            }
+
             UpdateHudVisibility(levelManager);
         }
 
@@ -198,8 +207,10 @@ namespace LightChasePrototype.UI
             var activeSceneName = SceneManager.GetActiveScene().name;
             if (!LightChaseLevelCatalog.TryGetNextLevelSceneName(activeSceneName, out var nextSceneName))
             {
-                // End of the prototype run: go back to menu.
-                mainMenuController.ShowMenu();
+                // End of the prototype run: show the final victory overlay.
+                mainMenuController.ShowVictoryOverlay(
+                    "GANASTE EL JUEGO",
+                    "Completaste todos los niveles. La luz no pudo contigo.");
                 return;
             }
 
@@ -212,8 +223,14 @@ namespace LightChasePrototype.UI
             var delay = Mathf.Max(0f, advanceToNextLevelDelaySeconds);
             if (delay > 0f)
             {
-                yield return new WaitForSeconds(delay);
+                // Use unscaled time so the advance still works even if
+                // gameplay was paused (e.g. by a transient menu).
+                yield return new WaitForSecondsRealtime(delay);
             }
+
+            // Make sure gameplay scenes are not stuck in paused state when
+            // the next scene loads.
+            Time.timeScale = 1f;
 
             // Prefer gameplay scenes; menu scene is just a fallback.
             if (!string.IsNullOrWhiteSpace(nextSceneName))

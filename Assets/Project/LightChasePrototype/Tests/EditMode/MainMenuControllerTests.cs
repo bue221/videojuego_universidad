@@ -190,6 +190,22 @@ public class MainMenuControllerTests
     }
 
     [Test]
+    public void PlayGame_AfterVictoryReturnToMenu_ShowsAvatarSelectionFirst()
+    {
+        string loadedScene = null;
+        _controller.ConfigureActionsForTests(sceneName => loadedScene = sceneName, null, () => "LightChasePrototype_Level04");
+
+        _controller.ShowVictoryOverlay("GANASTE", "Completaste todos los niveles.");
+        _controller.ShowMenu();
+        _controller.PlayGame();
+
+        Assert.That(loadedScene, Is.Null, "Un clic en JUGAR no debe cargar la escena directamente; primero debe mostrar la selección de avatar.");
+        Assert.That(_controller.AvatarSelectionVisible, Is.True, "El panel de selección de avatar debe quedar visible tras un solo clic en JUGAR.");
+        Assert.That(_controller.VictoryVisible, Is.False);
+        Assert.That(_mainActionsPanel.activeSelf, Is.False);
+    }
+
+    [Test]
     public void PlayGame_InGameplayScene_ResumesAfterFullSelectionFlow()
     {
         string loadedScene = null;
@@ -202,6 +218,19 @@ public class MainMenuControllerTests
         Assert.That(loadedScene, Is.Null);
         Assert.That(_controller.MenuVisible, Is.False);
         Assert.That(Time.timeScale, Is.EqualTo(1f));
+    }
+
+    [Test]
+    public void PlayGame_InNonDefaultGameplayScene_LoadsLevel1()
+    {
+        string loadedScene = null;
+        _controller.ConfigureActionsForTests(sceneName => loadedScene = sceneName, null, () => "LightChasePrototype_Level02");
+        _controller.SelectLevel(LightChaseLevelCatalog.WaterLevelId);
+
+        _controller.PlayGame();
+        _controller.PlayGame();
+
+        Assert.That(loadedScene, Is.EqualTo("LightChasePrototype"));
     }
 
     [Test]
@@ -306,6 +335,27 @@ public class MainMenuControllerTests
 
         Assert.That(gameTitle.text, Is.EqualTo("CORRE CORRE QUE TE ATRAPO"));
         Assert.That(subtitle.text, Is.EqualTo("Modelado 3D y videojuegos"));
+    }
+
+    [Test]
+    public void EnsureMenuExists_ShowVictoryOverlay_DisplaysVictoryPanelWithGameWonMessage()
+    {
+        Object.DestroyImmediate(_root);
+        Object.DestroyImmediate(_menuCanvas);
+        _root = null;
+        _menuCanvas = null;
+
+        var createdMenu = MainMenuController.EnsureMenuExists();
+
+        createdMenu.ShowVictoryOverlay("GANASTE EL JUEGO", "Completaste todos los niveles.");
+
+        var victoryTitle = GameObject.Find("VictoryTitle").GetComponent<Text>();
+        var victoryMessage = GameObject.Find("VictoryMessage").GetComponent<Text>();
+
+        Assert.That(createdMenu.VictoryVisible, Is.True);
+        Assert.That(createdMenu.DefeatVisible, Is.False);
+        Assert.That(victoryTitle.text, Is.EqualTo("GANASTE EL JUEGO"));
+        Assert.That(victoryMessage.text, Is.EqualTo("Completaste todos los niveles."));
     }
 
     [Test]

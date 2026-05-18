@@ -54,7 +54,7 @@ public class LightChaseLevelCatalogTests
     [Test]
     public void TryGetNextLevelSceneName_ReturnsFalseAfterLastLevel()
     {
-        var foundNext = LightChaseLevelCatalog.TryGetNextLevelSceneName("LightChasePrototype_Level03", out var nextSceneName);
+        var foundNext = LightChaseLevelCatalog.TryGetNextLevelSceneName("LightChasePrototype_Level04", out var nextSceneName);
 
         Assert.That(foundNext, Is.False);
         Assert.That(nextSceneName, Is.Null);
@@ -76,5 +76,32 @@ public class LightChaseLevelCatalogTests
 
         Assert.That(level.Id, Is.EqualTo(LightChaseLevelCatalog.WaterLevelId));
         Assert.That(level.DisplayName, Is.EqualTo("Nivel 3"));
+    }
+
+    [Test]
+    public void TryGetNextLevelSceneName_ReturnsLakeLevelAfterWater()
+    {
+        var foundNext = LightChaseLevelCatalog.TryGetNextLevelSceneName("LightChasePrototype_Level03", out var nextSceneName);
+
+        Assert.That(foundNext, Is.True);
+        Assert.That(nextSceneName, Is.EqualTo("LightChasePrototype_Level04"));
+    }
+
+    [Test]
+    public void SelectLevel_SwitchesToLakeLevel()
+    {
+        LightChaseLevelCatalog.SelectLevel(LightChaseLevelCatalog.LakeLevelId);
+
+        Assert.That(LightChaseLevelCatalog.SelectedLevelId, Is.EqualTo(LightChaseLevelCatalog.LakeLevelId));
+        Assert.That(LightChaseLevelCatalog.SelectedLevel.SceneName, Is.EqualTo("LightChasePrototype_Level04"));
+    }
+
+    [Test]
+    public void GetLevelBySceneName_ResolvesLakeLevel()
+    {
+        var level = LightChaseLevelCatalog.GetLevelBySceneName("LightChasePrototype_Level04");
+
+        Assert.That(level.Id, Is.EqualTo(LightChaseLevelCatalog.LakeLevelId));
+        Assert.That(level.DisplayName, Is.EqualTo("Nivel 4"));
     }
 }

@@ -26,6 +26,9 @@ namespace LightChasePrototype.UI
         [SerializeField] private GameObject defeatPanel;
         [SerializeField] private Text defeatTitleText;
         [SerializeField] private Text defeatMessageText;
+        [SerializeField] private GameObject victoryPanel;
+        [SerializeField] private Text victoryTitleText;
+        [SerializeField] private Text victoryMessageText;
 
         [Header("Decorative Background")]
         [SerializeField] private GameObject glowElement;
@@ -39,6 +42,10 @@ namespace LightChasePrototype.UI
         private MonoBehaviour _starterAssetsInputs;
         private readonly List<AvatarButtonBinding> _avatarButtons = new();
         private readonly List<LevelButtonBinding> _levelButtons = new();
+        // Tracks whether the user already pressed JUGAR and is now choosing an avatar.
+        // We avoid relying solely on avatarSelectionPanel.activeSelf because the panel
+        // state can be desynced after scene changes or overlay flows (defeat/victory).
+        private bool _awaitingAvatarConfirmation;
         public event Action<bool> MenuVisibilityChanged;
 
         public bool InstructionsVisible => instructionsPanel != null && instructionsPanel.activeSelf;
@@ -48,6 +55,7 @@ namespace LightChasePrototype.UI
         public bool AvatarSelectionVisible => avatarSelectionPanel != null && avatarSelectionPanel.activeSelf;
         public bool LevelSelectionVisible => levelSelectionPanel != null && levelSelectionPanel.activeSelf;
         public bool DefeatVisible => defeatPanel != null && defeatPanel.activeSelf;
+        public bool VictoryVisible => victoryPanel != null && victoryPanel.activeSelf;
         public string SelectedLevelId => ResolveSelectedLevel().Id;
         public string SelectedLevelSceneName => ResolveSelectedLevel().SceneName;
 
@@ -68,7 +76,6 @@ namespace LightChasePrototype.UI
                 else
                 {
                     existingMenu.gameplaySceneName = assignedGameplaySceneName;
-                    existingMenu.ShowMenu();
                     return existingMenu;
                 }
             }
@@ -129,6 +136,8 @@ namespace LightChasePrototype.UI
 
             var defeatSection = CreateDefeatPanel(root.transform);
 
+            var victorySection = CreateVictoryPanel(root.transform);
+
             var buttonStack = new GameObject("ButtonStack", typeof(RectTransform), typeof(VerticalLayoutGroup));
             buttonStack.transform.SetParent(root.transform, false);
             var stackRect = buttonStack.GetComponent<RectTransform>();
@@ -158,6 +167,9 @@ namespace LightChasePrototype.UI
             controller.defeatPanel = defeatSection;
             controller.defeatTitleText = defeatSection.transform.Find("DefeatTitle").GetComponent<Text>();
             controller.defeatMessageText = defeatSection.transform.Find("DefeatMessage").GetComponent<Text>();
+            controller.victoryPanel = victorySection;
+            controller.victoryTitleText = victorySection.transform.Find("VictoryTitle").GetComponent<Text>();
+            controller.victoryMessageText = victorySection.transform.Find("VictoryMessage").GetComponent<Text>();
             controller.glowElement = glowObject;
             controller.institutionBanner = bannerObject;
             controller.gameTitle = gameTitleObject;
@@ -167,12 +179,14 @@ namespace LightChasePrototype.UI
             controller.RegisterLevelButton(LightChaseLevelCatalog.PrototypeLevelId, levelSection.transform.Find("LevelButtonRow/Nivel1Button").GetComponent<Button>());
             controller.RegisterLevelButton(LightChaseLevelCatalog.NatureLevelId, levelSection.transform.Find("LevelButtonRow/Nivel2Button").GetComponent<Button>());
             controller.RegisterLevelButton(LightChaseLevelCatalog.WaterLevelId, levelSection.transform.Find("LevelButtonRow/Nivel3Button").GetComponent<Button>());
+            controller.RegisterLevelButton(LightChaseLevelCatalog.LakeLevelId, levelSection.transform.Find("LevelButtonRow/Nivel4Button").GetComponent<Button>());
             levelSection.transform.Find("LevelActionRow/ConfirmLevelButton").GetComponent<Button>().onClick.AddListener(controller.ShowAvatarSelectionFromLevel);
             levelSection.transform.Find("LevelActionRow/BackLevelButton").GetComponent<Button>().onClick.AddListener(controller.HideLevelSelection);
             avatarSection.transform.Find("AvatarActionRow/ConfirmAvatarButton").GetComponent<Button>().onClick.AddListener(controller.StartGameFromAvatarSelection);
             avatarSection.transform.Find("AvatarActionRow/BackAvatarButton").GetComponent<Button>().onClick.AddListener(controller.HideAvatarSelection);
             defeatSection.transform.Find("DefeatButtonRow/RetryButton").GetComponent<Button>().onClick.AddListener(controller.RetryCurrentLevel);
             defeatSection.transform.Find("DefeatButtonRow/MenuButton").GetComponent<Button>().onClick.AddListener(controller.ReturnToMainMenu);
+            victorySection.transform.Find("VictoryButtonRow/VictoryMenuButton").GetComponent<Button>().onClick.AddListener(controller.ReturnToMainMenu);
 
             instructions.transform.Find("CloseButton").GetComponent<Button>().onClick.AddListener(controller.HideInstructions);
             CreateMenuButton(buttonStack.transform, "Jugar", new Color(0.12f, 0.45f, 0.75f), controller.PlayGame);
@@ -193,6 +207,7 @@ namespace LightChasePrototype.UI
             HideLevelSelection();
             HideAvatarSelection();
             HideDefeat();
+            HideVictory();
             ShowMainActions();
             RefreshAvatarSelectionUi();
             RefreshLevelSelectionUi();
@@ -224,6 +239,7 @@ namespace LightChasePrototype.UI
             HideLevelSelection();
             HideAvatarSelection();
             HideDefeat();
+            HideVictory();
             ShowMainActions();
             RefreshLevelSelectionUi();
         }
@@ -253,20 +269,18 @@ namespace LightChasePrototype.UI
             EnsureUiReferences();
             HideDefeat();
 
-            if (AvatarSelectionVisible)
+            if (_awaitingAvatarConfirmation && AvatarSelectionVisible)
             {
                 StartGameFromAvatarSelection();
                 return;
             }
 
-            // Level selection is disabled: the run always starts at Level 1 and
-            // the game advances automatically after completing a level.
-            if (!LightChaseLevelCatalog.IsKnownSceneName(GetActiveSceneName()))
-            {
-                LightChaseLevelCatalog.SelectLevel(LightChaseLevelCatalog.PrototypeLevelId);
-            }
+            // Level selection is disabled: pressing Play always starts a fresh
+            // run from Level 1, regardless of the currently loaded scene.
+            LightChaseLevelCatalog.SelectLevel(LightChaseLevelCatalog.PrototypeLevelId);
 
             ShowAvatarSelection();
+            _awaitingAvatarConfirmation = true;
         }
 
         public void ShowLevelSelection()
@@ -323,6 +337,8 @@ namespace LightChasePrototype.UI
 
         public void HideAvatarSelection()
         {
+            _awaitingAvatarConfirmation = false;
+
             if (avatarSelectionPanel == null)
             {
                 ShowMainActions();
@@ -379,10 +395,12 @@ namespace LightChasePrototype.UI
         public void ShowMenu()
         {
             EnsureUiReferences();
+            _awaitingAvatarConfirmation = false;
             HideInstructions();
             HideLevelSelection();
             HideAvatarSelection();
             HideDefeat();
+            HideVictory();
             ShowMainActions();
             ShowDecorativeElements();
             RefreshAvatarSelectionUi();
@@ -411,6 +429,7 @@ namespace LightChasePrototype.UI
             HideLevelSelection();
             HideAvatarSelection();
             HideDefeat();
+            HideVictory();
             HideMainActions();
 
             if (menuCanvasGroup != null)
@@ -438,6 +457,7 @@ namespace LightChasePrototype.UI
             HideAvatarSelection();
             HideMainActions();
             HideDecorativeElements();
+            HideVictory();
 
             if (defeatTitleText != null)
             {
@@ -452,6 +472,48 @@ namespace LightChasePrototype.UI
             if (defeatPanel != null)
             {
                 defeatPanel.SetActive(true);
+            }
+
+            if (menuCanvasGroup != null)
+            {
+                menuCanvasGroup.gameObject.SetActive(true);
+                menuCanvasGroup.alpha = 1f;
+                menuCanvasGroup.interactable = true;
+                menuCanvasGroup.blocksRaycasts = true;
+            }
+
+            if (pauseGameplayWhileVisible)
+            {
+                Time.timeScale = 0f;
+            }
+
+            SetCursorForMenu(true);
+            MenuVisibilityChanged?.Invoke(true);
+        }
+
+        public void ShowVictoryOverlay(string title, string message)
+        {
+            EnsureUiReferences();
+            HideInstructions();
+            HideLevelSelection();
+            HideAvatarSelection();
+            HideMainActions();
+            HideDecorativeElements();
+            HideDefeat();
+
+            if (victoryTitleText != null)
+            {
+                victoryTitleText.text = title;
+            }
+
+            if (victoryMessageText != null)
+            {
+                victoryMessageText.text = message;
+            }
+
+            if (victoryPanel != null)
+            {
+                victoryPanel.SetActive(true);
             }
 
             if (menuCanvasGroup != null)
@@ -565,6 +627,7 @@ namespace LightChasePrototype.UI
 
         private void StartGameFromAvatarSelection()
         {
+            _awaitingAvatarConfirmation = false;
             HideDefeat();
             var selectedLevel = ResolveSelectedLevel();
 
@@ -621,6 +684,7 @@ namespace LightChasePrototype.UI
                 LightChaseLevelCatalog.PrototypeLevelId => "Tools/Prototype/Build Light Chase Level",
                 LightChaseLevelCatalog.NatureLevelId => "Tools/Prototype/Build Light Chase Level 02",
                 LightChaseLevelCatalog.WaterLevelId => "Tools/Prototype/Build Light Chase Level 03",
+                LightChaseLevelCatalog.LakeLevelId => "Tools/Prototype/Build Light Chase Level 04",
                 _ => null
             };
 
@@ -690,6 +754,14 @@ namespace LightChasePrototype.UI
             if (defeatPanel != null)
             {
                 defeatPanel.SetActive(false);
+            }
+        }
+
+        private void HideVictory()
+        {
+            if (victoryPanel != null)
+            {
+                victoryPanel.SetActive(false);
             }
         }
 
@@ -767,6 +839,21 @@ namespace LightChasePrototype.UI
                 defeatMessageText = defeatPanel?.transform.Find("DefeatMessage")?.GetComponent<Text>();
             }
 
+            if (victoryPanel == null)
+            {
+                victoryPanel = transform.Find("VictoryPanel")?.gameObject;
+            }
+
+            if (victoryTitleText == null)
+            {
+                victoryTitleText = victoryPanel?.transform.Find("VictoryTitle")?.GetComponent<Text>();
+            }
+
+            if (victoryMessageText == null)
+            {
+                victoryMessageText = victoryPanel?.transform.Find("VictoryMessage")?.GetComponent<Text>();
+            }
+
             if (glowElement == null)
             {
                 glowElement = transform.Find("Glow")?.gameObject;
@@ -795,6 +882,7 @@ namespace LightChasePrototype.UI
                 && levelSelectionPanel.transform.Find("LevelButtonRow/Nivel1Button") != null
                 && levelSelectionPanel.transform.Find("LevelButtonRow/Nivel2Button") != null
                 && levelSelectionPanel.transform.Find("LevelButtonRow/Nivel3Button") != null
+                && levelSelectionPanel.transform.Find("LevelButtonRow/Nivel4Button") != null
                 && levelSelectionPanel.transform.Find("LevelActionRow/ConfirmLevelButton") != null
                 && levelSelectionPanel.transform.Find("LevelActionRow/BackLevelButton") != null
                 && avatarSelectionPanel != null
@@ -803,7 +891,9 @@ namespace LightChasePrototype.UI
                 && avatarSelectionPanel.transform.Find("AvatarActionRow/ConfirmAvatarButton") != null
                 && avatarSelectionPanel.transform.Find("AvatarActionRow/BackAvatarButton") != null
                 && avatarSelectionPanel.transform.Find("AvatarPreviewFrame/AvatarPreview") != null
-                && instructionsPanel != null;
+                && instructionsPanel != null
+                && victoryPanel != null
+                && victoryPanel.transform.Find("VictoryButtonRow/VictoryMenuButton") != null;
         }
 
         private void RegisterAvatarButton(string avatarId, Button button)
@@ -1084,7 +1174,7 @@ namespace LightChasePrototype.UI
             var rowRect = levelButtonRow.GetComponent<RectTransform>();
             rowRect.anchorMin = new Vector2(0.5f, 0.58f);
             rowRect.anchorMax = new Vector2(0.5f, 0.58f);
-            rowRect.sizeDelta = new Vector2(880f, 64f);
+            rowRect.sizeDelta = new Vector2(980f, 64f);
 
             var rowLayout = levelButtonRow.GetComponent<HorizontalLayoutGroup>();
             rowLayout.childAlignment = TextAnchor.MiddleCenter;
@@ -1096,15 +1186,19 @@ namespace LightChasePrototype.UI
 
             var nivel1Button = CreateMenuButton(levelButtonRow.transform, "Nivel 1", new Color(0.1f, 0.2f, 0.32f), null);
             nivel1Button.name = "Nivel1Button";
-            nivel1Button.GetComponent<RectTransform>().sizeDelta = new Vector2(260f, 60f);
+            nivel1Button.GetComponent<RectTransform>().sizeDelta = new Vector2(220f, 60f);
 
             var nivel2Button = CreateMenuButton(levelButtonRow.transform, "Nivel 2", new Color(0.1f, 0.2f, 0.32f), null);
             nivel2Button.name = "Nivel2Button";
-            nivel2Button.GetComponent<RectTransform>().sizeDelta = new Vector2(260f, 60f);
+            nivel2Button.GetComponent<RectTransform>().sizeDelta = new Vector2(220f, 60f);
 
             var nivel3Button = CreateMenuButton(levelButtonRow.transform, "Nivel 3", new Color(0.1f, 0.2f, 0.32f), null);
             nivel3Button.name = "Nivel3Button";
-            nivel3Button.GetComponent<RectTransform>().sizeDelta = new Vector2(260f, 60f);
+            nivel3Button.GetComponent<RectTransform>().sizeDelta = new Vector2(220f, 60f);
+
+            var nivel4Button = CreateMenuButton(levelButtonRow.transform, "Nivel 4", new Color(0.1f, 0.2f, 0.32f), null);
+            nivel4Button.name = "Nivel4Button";
+            nivel4Button.GetComponent<RectTransform>().sizeDelta = new Vector2(220f, 60f);
 
             CreateStyledText("LevelDescription", panel.transform, string.Empty, 20, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(0.8f, 0.88f, 0.97f));
             SetAnchoredRect(panel.transform.Find("LevelDescription").GetComponent<RectTransform>(), new Vector2(0.5f, 0.34f), new Vector2(880f, 56f));
@@ -1169,6 +1263,40 @@ namespace LightChasePrototype.UI
             var menuButton = CreateMenuButton(buttonRow.transform, "Al menu principal", new Color(0.2f, 0.24f, 0.3f), null);
             menuButton.name = "MenuButton";
             menuButton.GetComponent<RectTransform>().sizeDelta = new Vector2(270f, 60f);
+
+            panel.SetActive(false);
+            return panel;
+        }
+
+        private static GameObject CreateVictoryPanel(Transform parent)
+        {
+            var panel = CreatePanel("VictoryPanel", parent, new Color(0.02f, 0.08f, 0.04f, 0.96f));
+            SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(900f, 340f));
+
+            CreateStyledText("VictoryTitle", panel.transform, "GANASTE EL JUEGO", 42, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.78f, 1f, 0.78f));
+            SetAnchoredRect(panel.transform.Find("VictoryTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.78f), new Vector2(720f, 60f));
+
+            CreateStyledText("VictoryMessage", panel.transform, string.Empty, 22, FontStyle.Normal, TextAnchor.MiddleCenter, new Color(0.84f, 1f, 0.88f));
+            SetAnchoredRect(panel.transform.Find("VictoryMessage").GetComponent<RectTransform>(), new Vector2(0.5f, 0.48f), new Vector2(780f, 100f));
+
+            var buttonRow = new GameObject("VictoryButtonRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            buttonRow.transform.SetParent(panel.transform, false);
+            var rowRect = buttonRow.GetComponent<RectTransform>();
+            rowRect.anchorMin = new Vector2(0.5f, 0.14f);
+            rowRect.anchorMax = new Vector2(0.5f, 0.14f);
+            rowRect.sizeDelta = new Vector2(360f, 64f);
+
+            var rowLayout = buttonRow.GetComponent<HorizontalLayoutGroup>();
+            rowLayout.childAlignment = TextAnchor.MiddleCenter;
+            rowLayout.spacing = 20f;
+            rowLayout.childControlWidth = false;
+            rowLayout.childControlHeight = false;
+            rowLayout.childForceExpandWidth = false;
+            rowLayout.childForceExpandHeight = false;
+
+            var menuButton = CreateMenuButton(buttonRow.transform, "Al menu principal", new Color(0.16f, 0.45f, 0.28f), null);
+            menuButton.name = "VictoryMenuButton";
+            menuButton.GetComponent<RectTransform>().sizeDelta = new Vector2(320f, 60f);
 
             panel.SetActive(false);
             return panel;

@@ -5,13 +5,17 @@ namespace LightChasePrototype
 {
     [RequireComponent(typeof(NavMeshAgent))]
     [RequireComponent(typeof(AudioSource))]
-    [RequireComponent(typeof(Animator))]
     public class EnemyLightSeeker : MonoBehaviour
     {
         private const float LegacyBaseMoveSpeed = 2.75f;
         private const float LegacyChaseMoveSpeed = 5.5f;
         private const float DefaultBaseMoveSpeed = 1.35f;
         private const float DefaultChaseMoveSpeed = 2.25f;
+
+        private const float IdleAnimatorSpeed = 0.45f;
+        private const float WalkAnimatorSpeed = 1f;
+        private const float ChaseAnimatorSpeed = 1.35f;
+        private const float InitialIdleAnimationFrames = 2f;
 
         [SerializeField] private float lightSignatureMultiplier = 1.85f;
         [SerializeField] private float maximumDetectionRange = 20f;
@@ -29,10 +33,7 @@ namespace LightChasePrototype
         [SerializeField] private float maximumWarningPitch = 1.35f;
         [SerializeField] private Renderer enemyRenderer;
         [SerializeField] private Light enemyGlow;
-
-        private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
-
-        private MaterialPropertyBlock _materialPropertyBlock;
+        [SerializeField] private Light enemyBodyGlow;
 
         private NavMeshAgent _agent;
         private Animator _animator;
@@ -43,24 +44,23 @@ namespace LightChasePrototype
         private float _repathTimer;
         private float _damageTimer;
         private float _glowBaseIntensity;
+        private float _bodyGlowBaseIntensity;
+        private bool _animatorBootstrapped;
+        private int _animatorBootstrapFramesRemaining;
 
         private void Awake()
         {
             ApplyFallbackBalanceForLegacyScenes();
             _agent = GetComponent<NavMeshAgent>();
             _agent.speed = baseMoveSpeed;
-            _animator = GetComponent<Animator>();
+            _animator = ResolveAnimator();
             _warningAudioSource = GetComponent<AudioSource>();
             ConfigureWarningAudio();
 
-            _materialPropertyBlock = new MaterialPropertyBlock();
+            _glowBaseIntensity = enemyGlow != null ? enemyGlow.intensity : 2.4f;
+            _bodyGlowBaseIntensity = enemyBodyGlow != null ? enemyBodyGlow.intensity : 1.1f;
 
-            if (enemyGlow == null)
-            {
-                enemyGlow = GetComponentInChildren<Light>();
-            }
-
-            _glowBaseIntensity = enemyGlow != null ? enemyGlow.intensity : 0.7f;
+            _animatorBootstrapFramesRemaining = Mathf.CeilToInt(InitialIdleAnimationFrames);
         }
 
         public void ConfigureRenderer(Renderer assignedRenderer)
@@ -74,6 +74,15 @@ namespace LightChasePrototype
             if (enemyGlow != null)
             {
                 _glowBaseIntensity = enemyGlow.intensity;
+            }
+        }
+
+        public void ConfigureBodyGlow(Light bodyLight)
+        {
+            enemyBodyGlow = bodyLight;
+            if (enemyBodyGlow != null)
+            {
+                _bodyGlowBaseIntensity = enemyBodyGlow.intensity;
             }
         }
 
@@ -91,6 +100,7 @@ namespace LightChasePrototype
         {
             if (_playerLightState == null || _playerTransform == null)
             {
+                UpdateAnimator(IdleAnimatorSpeed, isChasing: false);
                 return;
             }
 
@@ -103,7 +113,7 @@ namespace LightChasePrototype
                     _agent.ResetPath();
                 }
 
-                UpdateAnimator(0f);
+                UpdateAnimator(IdleAnimatorSpeed, isChasing: false);
                 UpdateGlow(0f);
                 return;
             }
@@ -122,8 +132,7 @@ namespace LightChasePrototype
                 : baseMoveSpeed;
 
             UpdateWarningAudio(warningLevel, isChasing);
-            UpdateEnemyAppearance(isChasing, isAlerted);
-            UpdateAnimator(_agent.velocity.magnitude);
+            UpdateAnimator(ResolveAnimatorSpeed(isChasing, isAlerted), isChasing);
             UpdateGlow(isChasing ? 1f : isAlerted ? 0.5f : 0f);
 
             if (!isChasing)
@@ -149,50 +158,144 @@ namespace LightChasePrototype
             _agent.SetDestination(_playerTransform.position);
         }
 
-        private void UpdateEnemyAppearance(bool isChasing, bool isAlerted)
+        private static float ResolveAnimatorSpeed(bool isChasing, bool isAlerted)
         {
-            if (enemyRenderer == null)
+            if (isChasing)
             {
-                return;
+                return ChaseAnimatorSpeed;
             }
 
-            enemyRenderer.GetPropertyBlock(_materialPropertyBlock);
-            _materialPropertyBlock.SetColor(
-                EmissionColorId,
-                isChasing
-                    ? new Color(0.35f, 0.06f, 0.03f)
-                    : isAlerted
-                        ? new Color(0.18f, 0.1f, 0.02f)
-                        : new Color(0.02f, 0.02f, 0.04f));
-            enemyRenderer.SetPropertyBlock(_materialPropertyBlock);
+            return isAlerted ? WalkAnimatorSpeed : IdleAnimatorSpeed;
         }
 
-        private void UpdateAnimator(float speed)
+        private void UpdateAnimator(float targetAnimatorSpeed, bool isChasing)
         {
             if (_animator == null || _animator.runtimeAnimatorController == null)
             {
                 return;
             }
 
-            var normalizedSpeed = _agent.speed > 0.01f
-                ? Mathf.Clamp01(speed / _agent.speed)
-                : 0f;
-            _animator.SetFloat("Speed", normalizedSpeed);
+            if (HasFloatParameter(_animator, "Speed"))
+            {
+                _animator.SetFloat("Speed", targetAnimatorSpeed);
+                _animator.speed = 1f;
+            }
+            else
+            {
+                _animator.speed = Mathf.Max(0.1f, targetAnimatorSpeed);
+            }
+
+            ApplyAnimatorActiveState(isChasing);
+        }
+
+        private void ApplyAnimatorActiveState(bool isChasing)
+        {
+            if (!_animatorBootstrapped)
+            {
+                _animator.enabled = true;
+                if (_animatorBootstrapFramesRemaining > 0)
+                {
+                    _animatorBootstrapFramesRemaining--;
+                    return;
+                }
+
+                _animatorBootstrapped = true;
+            }
+
+            if (_animator.enabled != isChasing)
+            {
+                _animator.enabled = isChasing;
+            }
+        }
+
+        private Animator ResolveAnimator()
+        {
+            var allAnimators = GetComponentsInChildren<Animator>(true);
+            Animator bestAnimator = null;
+            var bestScore = int.MinValue;
+
+            foreach (var candidate in allAnimators)
+            {
+                if (candidate == null)
+                {
+                    continue;
+                }
+
+                var score = 0;
+                if (candidate.runtimeAnimatorController != null)
+                {
+                    score += 4;
+                }
+
+                if (candidate.avatar != null && candidate.avatar.isValid)
+                {
+                    score += 2;
+                }
+
+                if (candidate.transform != transform)
+                {
+                    score += 1;
+                }
+
+                if (score <= bestScore)
+                {
+                    continue;
+                }
+
+                bestScore = score;
+                bestAnimator = candidate;
+            }
+
+            return bestAnimator ?? GetComponent<Animator>();
+        }
+
+        private static bool HasFloatParameter(Animator animator, string parameterName)
+        {
+            foreach (var parameter in animator.parameters)
+            {
+                if (parameter.type == AnimatorControllerParameterType.Float && parameter.name == parameterName)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void UpdateGlow(float intensityFactor)
+        {
+            UpdateSpotGlow(intensityFactor);
+            UpdateBodyGlow(intensityFactor);
+        }
+
+        private void UpdateSpotGlow(float intensityFactor)
         {
             if (enemyGlow == null)
             {
                 return;
             }
 
-            enemyGlow.intensity = Mathf.Lerp(0f, _glowBaseIntensity * 1.5f, intensityFactor);
+            enemyGlow.intensity = Mathf.Lerp(_glowBaseIntensity * 0.65f, _glowBaseIntensity * 1.4f, intensityFactor);
             enemyGlow.color = intensityFactor > 0.8f
+                ? new Color(1f, 0.45f, 0.25f)
+                : intensityFactor > 0.3f
+                    ? new Color(1f, 0.72f, 0.4f)
+                    : new Color(1f, 0.85f, 0.6f);
+        }
+
+        private void UpdateBodyGlow(float intensityFactor)
+        {
+            if (enemyBodyGlow == null)
+            {
+                return;
+            }
+
+            enemyBodyGlow.intensity = Mathf.Lerp(_bodyGlowBaseIntensity * 0.55f, _bodyGlowBaseIntensity * 1.6f, intensityFactor);
+            enemyBodyGlow.color = intensityFactor > 0.8f
                 ? new Color(1f, 0.4f, 0.2f)
                 : intensityFactor > 0.3f
-                    ? new Color(1f, 0.7f, 0.3f)
-                    : new Color(0.95f, 0.85f, 0.7f);
+                    ? new Color(1f, 0.6f, 0.3f)
+                    : new Color(1f, 0.78f, 0.45f);
         }
 
         private void ConfigureWarningAudio()

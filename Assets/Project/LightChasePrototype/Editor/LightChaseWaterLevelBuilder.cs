@@ -1,10 +1,12 @@
 using System.IO;
 using LightChasePrototype;
+using LightChasePrototype.EditorTools;
 using StarterAssets;
 using Unity.AI.Navigation;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 
@@ -12,15 +14,18 @@ public static class LightChaseWaterLevelBuilder
 {
     private const string PlaygroundScenePath = "Assets/ThirdParty/StarterAssets/ThirdPersonController/Scenes/Playground.unity";
     private const string WaterLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level03.unity";
-    private const string PlayerPrefabPath = "Assets/ThirdParty/StarterAssets/ThirdPersonController/Prefabs/PlayerArmature.prefab";
-    private const string CameraPrefabPath = "Assets/ThirdParty/StarterAssets/ThirdPersonController/Prefabs/PlayerFollowCamera.prefab";
-    private const string ScenarioConvertedModelPath = "Assets/Project/LightChasePrototype/Resources/ModelosEscenarios/escenario_3_converted.fbx";
-    private const string ScenarioModelPath = "Assets/Project/LightChasePrototype/Resources/ModelosEscenarios/escenario_3.glb";
-    private const string ImportedScenarioModelPath = "Assets/MeshyImports/LightChaseLevel03/escenario_3_runtime.glb";
-    private const string TextureFolder = "Assets/Project/LightChasePrototype/Resources/ModelosEscenarios/Textures";
-    private const float TargetEnvironmentFootprint = 72f;
     private const string PrototypeLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype.unity";
     private const string NatureLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level02.unity";
+    private const string LakeLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level04.unity";
+    private const string PlayerPrefabPath = "Assets/ThirdParty/StarterAssets/ThirdPersonController/Prefabs/PlayerArmature.prefab";
+    private const string CameraPrefabPath = "Assets/ThirdParty/StarterAssets/ThirdPersonController/Prefabs/PlayerFollowCamera.prefab";
+    private const string ScenarioEscena3ModelPath = "Assets/MeshyImports/Escena3/Meshy_AI_Moonlit_Keep_in_the_P_0518083210_texture.fbx";
+    private const string ScenarioEscena3MaterialPath = "Assets/MeshyImports/Escena3/Material.001.mat";
+    private const string ScenarioEscena3TexturePrefix = "Assets/MeshyImports/Escena3/Meshy_AI_Moonlit_Keep_in_the_P_0518083210_texture";
+    private const float TargetKeepFootprint = 22f;
+    private static readonly Vector3 KeepCenter = new(2f, 0f, 6f);
+    private static readonly Vector3 WaterSpawnPosition = new(-32f, 1.15f, -14f);
+    private static readonly Quaternion WaterSpawnRotation = Quaternion.Euler(0f, 48f, 0f);
 
     [MenuItem("Tools/Prototype/Build Light Chase Level 03")]
     public static void BuildLevel()
@@ -28,7 +33,6 @@ public static class LightChaseWaterLevelBuilder
         BuildLevelInternal(preserveExistingScenarioEnvironment: true);
     }
 
-    [MenuItem("Tools/Prototype/Build Light Chase Level 03 (Full Rebuild)")]
     public static void BuildLevelFullRebuild()
     {
         BuildLevelInternal(preserveExistingScenarioEnvironment: false);
@@ -41,19 +45,19 @@ public static class LightChaseWaterLevelBuilder
         var scene = EditorSceneManager.OpenScene(WaterLevelScenePath, OpenSceneMode.Single);
 
         ClearPreviousGeneratedContent(preserveExistingScenarioEnvironment);
-        ConfigureAtmosphere();
 
-        var environment = BuildScenarioEnvironment(preserveExistingScenarioEnvironment);
-        var environmentBounds = CalculateEnvironmentBounds(environment);
-        ConfigureLevelManager();
-        var player = FindOrCreatePlayer(environmentBounds);
+        var player = FindOrCreatePlayer();
         var playerLightState = PlayerAvatarSetup.EnsureGameplayPresentation(player);
         PlayerAvatarSetup.BindCameraToPlayer(player);
 
-        ConfigureWater(environmentBounds);
-        ConfigureEnemy(environmentBounds);
-        ConfigureStars(environmentBounds);
-        ConfigureExit(environmentBounds);
+        ConfigureAtmosphere();
+        BuildHybridEnvironment();
+        BuildScenarioKeep(preserveExistingScenarioEnvironment);
+        ConfigureLevelManager();
+        ConfigureWaterHazards();
+        ConfigureEnemy();
+        ConfigureStars();
+        ConfigureExit();
         ConfigureNavigation();
         EnsureGameplayScenesIncludedInBuildSettings();
 
@@ -88,6 +92,9 @@ public static class LightChaseWaterLevelBuilder
     private static void ClearPreviousGeneratedContent(bool preserveExistingScenarioEnvironment)
     {
         DestroyIfExists("Environment");
+        DestroyIfExists("WaterLevelGeometry");
+        DestroyIfExists("WaterLevelDressing");
+        DestroyIfExists("WaterLevelLighting");
         if (!preserveExistingScenarioEnvironment)
         {
             DestroyIfExists("Scenario3Environment");
@@ -101,6 +108,7 @@ public static class LightChaseWaterLevelBuilder
         DestroyIfExists("GlobalUIRoot");
         DestroyIfExists("ExitPortal");
         DestroyIfExists("LightHunter");
+        DestroyIfExists("LightHunters");
         DestroyIfExists("WaterHazards");
         DestroyComponentOfType<EnemyLightSeeker>();
         DestroyComponentOfType<ExitPortal>();
@@ -143,27 +151,116 @@ public static class LightChaseWaterLevelBuilder
         }
     }
 
-    private static GameObject BuildScenarioEnvironment(bool preserveExistingScenarioEnvironment)
+    private static GameObject FindOrCreatePlayer()
     {
+        var playerController = Object.FindAnyObjectByType<ThirdPersonController>();
+        if (playerController != null)
+        {
+            playerController.transform.SetPositionAndRotation(WaterSpawnPosition, WaterSpawnRotation);
+            return playerController.gameObject;
+        }
+
+        var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerPrefabPath);
+        var cameraPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CameraPrefabPath);
+
+        var player = PrefabUtility.InstantiatePrefab(playerPrefab) as GameObject;
+        PrefabUtility.InstantiatePrefab(cameraPrefab);
+        player.transform.SetPositionAndRotation(WaterSpawnPosition, WaterSpawnRotation);
+        return player;
+    }
+
+    // Tras "perder" el loop por escenas vacias, este nivel ahora apoya su jugabilidad
+    // en un terreno modular consistente con el resto del prototipo, y deja el Keep de
+    // Meshy como pieza decorativa central con una zona inundada a sus pies.
+    private static void BuildHybridEnvironment()
+    {
+        var geometryRoot = new GameObject("WaterLevelGeometry");
+        var dressingRoot = new GameObject("WaterLevelDressing");
+
+        var groundTiles = new (string PrefabName, Vector3 Position, Vector3 Scale, float RotationY)[]
+        {
+            ("Ground_03", new Vector3(-30f, -0.05f, -14f), new Vector3(2.7f, 1f, 2.6f), 4f),
+            ("Ground_02", new Vector3(-22f, -0.05f, -19f), new Vector3(2.3f, 1f, 2.1f), 12f),
+            ("Ground_01", new Vector3(-12f, -0.05f, -21f), new Vector3(2.2f, 1f, 2.1f), -8f),
+            ("Ground_03", new Vector3(0f, -0.05f, -19f), new Vector3(2.3f, 1f, 2.2f), 6f),
+            ("Ground_02", new Vector3(12f, -0.05f, -16f), new Vector3(2.3f, 1f, 2.2f), -10f),
+            ("Ground_01", new Vector3(22f, -0.05f, -10f), new Vector3(2.2f, 1f, 2.15f), 8f),
+            ("Ground_03", new Vector3(28f, -0.05f, 2f), new Vector3(2.4f, 1f, 2.3f), -6f),
+            ("Ground_02", new Vector3(26f, -0.05f, 16f), new Vector3(2.3f, 1f, 2.3f), 10f),
+            ("Ground_01", new Vector3(18f, -0.05f, 26f), new Vector3(2.25f, 1f, 2.2f), -12f),
+            ("Ground_03", new Vector3(6f, -0.05f, 28f), new Vector3(2.3f, 1f, 2.25f), 6f),
+            ("Ground_02", new Vector3(-8f, -0.05f, 26f), new Vector3(2.3f, 1f, 2.25f), -10f),
+            ("Ground_01", new Vector3(-20f, -0.05f, 20f), new Vector3(2.2f, 1f, 2.15f), 8f),
+            ("Ground_03", new Vector3(-28f, -0.05f, 10f), new Vector3(2.3f, 1f, 2.2f), -4f),
+            ("Ground_02", new Vector3(-32f, -0.05f, -3f), new Vector3(2.3f, 1f, 2.2f), 10f)
+        };
+
+        foreach (var tile in groundTiles)
+        {
+            CreateGroundTile(geometryRoot.transform, tile.PrefabName, tile.Position, tile.Scale, tile.RotationY);
+        }
+
+        var props = new (string PrefabName, Vector3 Position, Vector3 Scale, float RotationY)[]
+        {
+            ("Rock_05", new Vector3(-36f, 0f, -17f), Vector3.one * 1.8f, -8f),
+            ("Tree_03", new Vector3(-28f, 0f, -22f), Vector3.one * 1.2f, 10f),
+            ("Rock_04", new Vector3(-18f, 0f, -24f), Vector3.one * 1.9f, 18f),
+            ("Bush_03", new Vector3(-10f, 0f, -16f), Vector3.one * 1.5f, 0f),
+            ("Rock_02", new Vector3(4f, 0f, -22f), Vector3.one * 1.7f, -14f),
+            ("Tree_05", new Vector3(14f, 0f, -19f), Vector3.one * 1.32f, 12f),
+            ("Bush_01", new Vector3(22f, 0f, -16f), Vector3.one * 1.45f, 0f),
+            ("Rock_03", new Vector3(30f, 0f, -6f), Vector3.one * 1.8f, 22f),
+            ("Tree_02", new Vector3(32f, 0f, 8f), Vector3.one * 1.32f, -10f),
+            ("Rock_05", new Vector3(30f, 0f, 22f), Vector3.one * 1.85f, 6f),
+            ("Tree_04", new Vector3(22f, 0f, 30f), Vector3.one * 1.24f, -16f),
+            ("Bush_02", new Vector3(8f, 0f, 32f), Vector3.one * 1.5f, 14f),
+            ("Rock_04", new Vector3(-6f, 0f, 30f), Vector3.one * 1.85f, -22f),
+            ("Tree_03", new Vector3(-18f, 0f, 26f), Vector3.one * 1.22f, 4f),
+            ("Rock_02", new Vector3(-28f, 0f, 18f), Vector3.one * 1.75f, 18f),
+            ("Bush_03", new Vector3(-34f, 0f, 6f), Vector3.one * 1.5f, 0f),
+            ("Tree_05", new Vector3(-36f, 0f, -8f), Vector3.one * 1.3f, 8f),
+            ("Stump_01", new Vector3(-12f, 0f, -10f), Vector3.one * 1.3f, -8f),
+            ("Branch_01", new Vector3(16f, 0.02f, -4f), Vector3.one * 1.5f, 18f),
+            ("Flowers_02", new Vector3(-22f, 0.05f, 8f), Vector3.one * 1.6f, 0f),
+            ("Grass_02", new Vector3(-16f, 0.05f, 16f), Vector3.one * 2.0f, 0f),
+            ("Flowers_01", new Vector3(20f, 0.05f, 20f), Vector3.one * 1.55f, 0f),
+            ("Grass_01", new Vector3(-4f, 0.05f, 18f), Vector3.one * 1.85f, 0f)
+        };
+
+        foreach (var prop in props)
+        {
+            CreatePropCluster(dressingRoot.transform, prop.PrefabName, prop.Position, prop.Scale, prop.RotationY);
+        }
+    }
+
+    // El Keep importado se trata como una pieza dramatica central: se reescala a un
+    // footprint manejable, se asienta sobre el suelo y se rodea de antorchas calidas
+    // que rompen la oscuridad sin contradecir la fantasia nocturna.
+    private static void BuildScenarioKeep(bool preserveExistingScenarioEnvironment)
+    {
+        GameObject environment;
         if (preserveExistingScenarioEnvironment)
         {
-            var existingEnvironment = GameObject.Find("Scenario3Environment");
-            if (existingEnvironment != null)
+            environment = GameObject.Find("Scenario3Environment");
+            if (environment != null)
             {
-                EnsureRenderMeshesHaveColliders(existingEnvironment);
-                ApplyScenarioMaterial(existingEnvironment);
-                return existingEnvironment;
+                EnsureRenderMeshesHaveColliders(environment);
+                ApplyScenarioMaterial(environment);
+                ConfigureKeepLighting(environment);
+                return;
             }
         }
 
         var scenarioPrefab = LoadScenarioPrefab();
         if (scenarioPrefab == null)
         {
-            Debug.LogWarning($"No se pudo cargar {ScenarioModelPath}. Se creara un fallback simple.");
-            return BuildFallbackEnvironment();
+            Debug.LogWarning($"No se pudo cargar el escenario desde {ScenarioEscena3ModelPath}. Se creara un fallback simple.");
+            environment = BuildFallbackEnvironment();
+            ConfigureKeepLighting(environment);
+            return;
         }
 
-        var environment = PrefabUtility.InstantiatePrefab(scenarioPrefab) as GameObject;
+        environment = PrefabUtility.InstantiatePrefab(scenarioPrefab) as GameObject;
         if (environment == null)
         {
             environment = Object.Instantiate(scenarioPrefab);
@@ -171,29 +268,16 @@ public static class LightChaseWaterLevelBuilder
 
         environment.name = "Scenario3Environment";
 
-        var rendererCount = environment.GetComponentsInChildren<Renderer>().Length;
-        var meshFilterCount = environment.GetComponentsInChildren<MeshFilter>().Length;
-        Debug.Log($"[Level03] Instantiated '{scenarioPrefab.name}': renderers={rendererCount}, meshFilters={meshFilterCount}, localScale={environment.transform.localScale}");
-
-        var initialBounds = CalculateEnvironmentBounds(environment);
         var meshBounds = CalculateMeshFilterBounds(environment);
-        var currentFootprint = Mathf.Max(initialBounds.size.x, initialBounds.size.z);
+        var rendererBounds = CalculateEnvironmentBounds(environment);
         var meshFootprint = Mathf.Max(meshBounds.size.x, meshBounds.size.z);
-        Debug.Log($"[Level03] Renderer bounds: size={initialBounds.size}, footprint={currentFootprint:F3}");
-        Debug.Log($"[Level03] MeshFilter bounds: size={meshBounds.size}, footprint={meshFootprint:F3}");
+        var rendererFootprint = Mathf.Max(rendererBounds.size.x, rendererBounds.size.z);
+        var footprint = Mathf.Max(meshFootprint, rendererFootprint);
 
-        if (currentFootprint < 0.01f)
+        if (footprint > 0.01f)
         {
-            Debug.LogWarning("[Level03] Renderer footprint near zero — using MeshFilter fallback.");
-            initialBounds = meshBounds;
-            currentFootprint = meshFootprint;
-        }
-
-        if (currentFootprint > 0.01f)
-        {
-            var uniformScale = TargetEnvironmentFootprint / currentFootprint;
+            var uniformScale = TargetKeepFootprint / footprint;
             environment.transform.localScale = Vector3.one * uniformScale;
-            Debug.Log($"[Level03] Applied scale: {uniformScale:F3} (target={TargetEnvironmentFootprint})");
         }
 
         var scaledBounds = CalculateEnvironmentBounds(environment);
@@ -202,66 +286,81 @@ public static class LightChaseWaterLevelBuilder
             scaledBounds = CalculateMeshFilterBounds(environment);
         }
 
-        environment.transform.position += new Vector3(-scaledBounds.center.x, -scaledBounds.min.y, -scaledBounds.center.z);
-        Debug.Log($"[Level03] Final bounds: size={scaledBounds.size}, position={environment.transform.position}");
+        environment.transform.position = KeepCenter + new Vector3(-scaledBounds.center.x, -scaledBounds.min.y, -scaledBounds.center.z);
+        Debug.Log($"[Level03] Keep colocado en {environment.transform.position}, escala {environment.transform.localScale.x:F3}, footprint {footprint:F2}");
 
         EnsureRenderMeshesHaveColliders(environment);
         ApplyScenarioMaterial(environment);
-        return environment;
+        ConfigureKeepLighting(environment);
+    }
+
+    private static void ConfigureKeepLighting(GameObject environment)
+    {
+        var lightingRoot = new GameObject("WaterLevelLighting");
+
+        var torchOffsets = new[]
+        {
+            new Vector3(-6f, 2.8f, -5f),
+            new Vector3(6f, 2.8f, -5f),
+            new Vector3(-6f, 2.8f, 7f),
+            new Vector3(6f, 2.8f, 7f),
+            new Vector3(0f, 5.2f, 0f)
+        };
+
+        for (var i = 0; i < torchOffsets.Length; i++)
+        {
+            var torch = new GameObject($"KeepTorch_{i + 1}");
+            torch.transform.SetParent(lightingRoot.transform, false);
+            torch.transform.position = KeepCenter + torchOffsets[i];
+
+            var torchLight = torch.AddComponent<Light>();
+            torchLight.type = LightType.Point;
+            torchLight.range = 12f;
+            torchLight.intensity = 1.4f;
+            torchLight.color = new Color(1f, 0.78f, 0.46f);
+            torchLight.shadows = LightShadows.None;
+        }
+
+        if (environment != null)
+        {
+            var fillLight = new GameObject("KeepRimFill");
+            fillLight.transform.SetParent(lightingRoot.transform, false);
+            fillLight.transform.position = KeepCenter + new Vector3(0f, 12f, -6f);
+            fillLight.transform.rotation = Quaternion.Euler(35f, 20f, 0f);
+
+            var directional = fillLight.AddComponent<Light>();
+            directional.type = LightType.Spot;
+            directional.range = 28f;
+            directional.spotAngle = 90f;
+            directional.intensity = 0.9f;
+            directional.color = new Color(0.55f, 0.62f, 0.85f);
+            directional.shadows = LightShadows.Soft;
+        }
     }
 
     private static GameObject LoadScenarioPrefab()
     {
-        var convertedPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(ScenarioConvertedModelPath);
-        if (convertedPrefab != null)
+        var escena3Prefab = AssetDatabase.LoadAssetAtPath<GameObject>(ScenarioEscena3ModelPath);
+        if (escena3Prefab != null)
         {
-            return convertedPrefab;
+            return escena3Prefab;
         }
 
-        var directPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(ScenarioModelPath);
-        if (directPrefab != null)
-        {
-            return directPrefab;
-        }
-
-        if (!File.Exists(ScenarioModelPath))
-        {
-            return null;
-        }
-
-        EnsureImportedScenarioCopyExists();
-        return AssetDatabase.LoadAssetAtPath<GameObject>(ImportedScenarioModelPath);
-    }
-
-    private static void EnsureImportedScenarioCopyExists()
-    {
-        const string meshyRoot = "Assets/MeshyImports";
-        const string levelFolder = "Assets/MeshyImports/LightChaseLevel03";
-
-        if (!AssetDatabase.IsValidFolder(meshyRoot))
-        {
-            AssetDatabase.CreateFolder("Assets", "MeshyImports");
-        }
-
-        if (!AssetDatabase.IsValidFolder(levelFolder))
-        {
-            AssetDatabase.CreateFolder(meshyRoot, "LightChaseLevel03");
-        }
-
-        File.Copy(ScenarioModelPath, ImportedScenarioModelPath, true);
-        AssetDatabase.ImportAsset(ImportedScenarioModelPath, ImportAssetOptions.ForceUpdate);
-
-        if (AssetImporter.GetAtPath(ImportedScenarioModelPath) is ModelImporter importer)
-        {
-            importer.SaveAndReimport();
-        }
+        Debug.LogWarning($"No se encontro el prefab de Escena3 en {ScenarioEscena3ModelPath}");
+        return null;
     }
 
     private static GameObject BuildFallbackEnvironment()
     {
-        var environment = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        var environment = GameObject.CreatePrimitive(PrimitiveType.Cube);
         environment.name = "Scenario3Environment";
-        environment.transform.localScale = new Vector3(6f, 1f, 6f);
+        environment.transform.position = KeepCenter + new Vector3(0f, 2.5f, 0f);
+        environment.transform.localScale = new Vector3(TargetKeepFootprint, 5f, TargetKeepFootprint);
+        var renderer = environment.GetComponent<Renderer>();
+        renderer.sharedMaterial = CreateLitMaterial(
+            "Scenario3Fallback",
+            new Color(0.18f, 0.2f, 0.26f),
+            Color.black);
         return environment;
     }
 
@@ -353,51 +452,25 @@ public static class LightChaseWaterLevelBuilder
         return manager;
     }
 
-    private static GameObject FindOrCreatePlayer(Bounds environmentBounds)
+    // Tres pasos inundados con tradeoff: el moat alrededor del Keep, un canal que
+    // corta la ruta sur y un estanque cerca del portal que castiga apuros finales.
+    private static void ConfigureWaterHazards()
     {
-        var spawnPosition = BuildGroundPoint(environmentBounds, 0.16f, 0.18f, 0.2f);
-        var facingPoint = BuildGroundPoint(environmentBounds, 0.26f, 0.28f, 0.2f);
-        var spawnRotation = Quaternion.LookRotation((facingPoint - spawnPosition).normalized);
-
-        var playerController = Object.FindAnyObjectByType<ThirdPersonController>();
-        if (playerController != null)
-        {
-            playerController.transform.SetPositionAndRotation(spawnPosition, spawnRotation);
-            return playerController.gameObject;
-        }
-
-        var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerPrefabPath);
-        var cameraPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CameraPrefabPath);
-
-        var player = PrefabUtility.InstantiatePrefab(playerPrefab) as GameObject;
-        PrefabUtility.InstantiatePrefab(cameraPrefab);
-        player.transform.SetPositionAndRotation(spawnPosition, spawnRotation);
-        return player;
+        var waterRoot = new GameObject("WaterHazards");
+        CreateWaterZone(waterRoot.transform, "WaterZone_KeepMoat", new Vector3(2f, 0.9f, 6f), new Vector3(18f, 2.0f, 14f));
+        CreateWaterZone(waterRoot.transform, "WaterZone_SouthChannel", new Vector3(-6f, 0.9f, -13f), new Vector3(14f, 1.8f, 6f));
+        CreateWaterZone(waterRoot.transform, "WaterZone_NorthPond", new Vector3(20f, 0.9f, 22f), new Vector3(10f, 1.8f, 8f));
     }
 
-    private static void ConfigureWater(Bounds environmentBounds)
-    {
-        var root = new GameObject("WaterHazards");
-        CreateWaterZone(root.transform, "WaterZone_CentralLagoon", environmentBounds, 0.48f, 0.42f, 0.34f, 0.26f);
-        CreateWaterZone(root.transform, "WaterZone_MidChannel", environmentBounds, 0.62f, 0.54f, 0.24f, 0.18f);
-        CreateWaterZone(root.transform, "WaterZone_FinalApproach", environmentBounds, 0.72f, 0.7f, 0.19f, 0.16f);
-    }
-
-    private static void CreateWaterZone(Transform parent, string objectName, Bounds environmentBounds, float centerXT, float centerZT, float widthT, float depthT)
+    private static void CreateWaterZone(Transform parent, string objectName, Vector3 center, Vector3 size)
     {
         var waterZone = new GameObject(objectName);
         waterZone.transform.SetParent(parent, false);
-
-        var waterCenter = BuildFlatPoint(environmentBounds, centerXT, centerZT);
-        waterCenter.y = environmentBounds.min.y + 1.15f;
-        waterZone.transform.position = waterCenter;
+        waterZone.transform.position = center;
 
         var collider = waterZone.AddComponent<BoxCollider>();
         collider.isTrigger = true;
-        collider.size = new Vector3(
-            Mathf.Max(6f, environmentBounds.size.x * widthT),
-            2.4f,
-            Mathf.Max(4f, environmentBounds.size.z * depthT));
+        collider.size = size;
 
         var waterVolume = waterZone.AddComponent<WaterVolume>();
         var serializedVolume = new SerializedObject(waterVolume);
@@ -406,40 +479,56 @@ public static class LightChaseWaterLevelBuilder
         serializedVolume.FindProperty("jumpHeightMultiplier").floatValue = 0.22f;
         serializedVolume.FindProperty("visualSinkDepth").floatValue = 0.62f;
         serializedVolume.ApplyModifiedPropertiesWithoutUndo();
+
+        // Water surface must sit at ground level (world y ~= 0), NOT at the top of
+        // the trigger collider. The trigger is intentionally tall so it catches the
+        // player entering from any direction, but the visible water should look like
+        // a thin film on the ground, not a floating plane in mid-air.
+        const float waterSurfaceWorldY = 0.05f;
+        var surfaceLocalY = waterSurfaceWorldY - waterZone.transform.position.y;
+        var surfaceCenter = new Vector3(0f, surfaceLocalY, 0f);
+        var surfaceSize = new Vector3(size.x, 0f, size.z);
+        LightChaseWaterSurface.CreateSurface(waterZone.transform, $"{objectName}_Surface", surfaceCenter, surfaceSize);
     }
 
-    private static void ConfigureEnemy(Bounds environmentBounds)
+    private static void ConfigureEnemy()
     {
-        var groundPoint = BuildGroundPoint(environmentBounds, 0.52f, 0.5f, 0f);
-        var enemyObject = EnemyBuilder.BuildEnemyRoot("LightHunter", groundPoint);
-        EnemyBuilder.AlignBaseToY(enemyObject, groundPoint.y);
-        enemyObject.transform.position += Vector3.up * 0.02f;
-        EnemyBuilder.ConfigureNavMeshAgent(enemyObject);
-        EnemyBuilder.ConfigureEnemyLightSeeker(enemyObject);
-    }
-
-    private static void ConfigureStars(Bounds environmentBounds)
-    {
-        var parent = new GameObject("Collectibles");
-        var starAnchors = new[]
+        var anchors = new[]
         {
-            new Vector2(0.24f, 0.22f),
-            new Vector2(0.32f, 0.34f),
-            new Vector2(0.44f, 0.3f),
-            new Vector2(0.56f, 0.42f),
-            new Vector2(0.63f, 0.56f),
-            new Vector2(0.74f, 0.62f),
-            new Vector2(0.79f, 0.74f),
-            new Vector2(0.48f, 0.68f),
-            new Vector2(0.29f, 0.58f)
+            new Vector3(12f, 0f, -2f),
+            new Vector3(-14f, 0f, 9f),
+            new Vector3(6f, 0f, 12f),
+            new Vector3(-10f, 0f, -10f)
         };
 
-        for (var i = 0; i < starAnchors.Length; i++)
+        var spawns = EnemyLevelComposition.BuildSpawns(EnemyLevelComposition.LevelTier.Level03, anchors);
+        EnemySpawner.SpawnEnemies(spawns);
+    }
+
+    // Nueve estrellas distribuidas con riesgo creciente: ribera segura, perimetro
+    // del moat (exposicion media) y dos cerca del Keep (alta visibilidad).
+    private static void ConfigureStars()
+    {
+        var parent = new GameObject("Collectibles");
+        var positions = new[]
+        {
+            new Vector3(-28f, 2.3f, -16f),
+            new Vector3(-16f, 2.3f, -20f),
+            new Vector3(-4f, 2.3f, -22f),
+            new Vector3(14f, 2.35f, -14f),
+            new Vector3(26f, 2.35f, 0f),
+            new Vector3(2f, 4.6f, 6f),
+            new Vector3(-8f, 2.35f, 14f),
+            new Vector3(10f, 2.35f, 18f),
+            new Vector3(20f, 2.35f, 28f)
+        };
+
+        for (var i = 0; i < positions.Length; i++)
         {
             var star = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             star.name = $"Star_{i + 1}";
             star.transform.SetParent(parent.transform);
-            star.transform.position = BuildGroundPoint(environmentBounds, starAnchors[i].x, starAnchors[i].y, 2.4f);
+            star.transform.position = positions[i];
             star.transform.localScale = Vector3.one * 0.6f;
 
             var collider = star.GetComponent<SphereCollider>();
@@ -467,11 +556,11 @@ public static class LightChaseWaterLevelBuilder
         }
     }
 
-    private static void ConfigureExit(Bounds environmentBounds)
+    private static void ConfigureExit()
     {
         var exitObject = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         exitObject.name = "ExitPortal";
-        exitObject.transform.position = BuildGroundPoint(environmentBounds, 0.84f, 0.83f, 1.7f);
+        exitObject.transform.position = new Vector3(26f, 1.55f, 28f);
         exitObject.transform.localScale = new Vector3(1.5f, 1.35f, 1.5f);
 
         var renderer = exitObject.GetComponent<Renderer>();
@@ -499,29 +588,163 @@ public static class LightChaseWaterLevelBuilder
         navMeshSurface.BuildNavMesh();
     }
 
-    private static Vector3 BuildGroundPoint(Bounds environmentBounds, float xT, float zT, float verticalOffset)
+    private static GameObject CreateGroundTile(Transform parent, string prefabName, Vector3 position, Vector3 scale, float rotationY)
     {
-        var flatPoint = BuildFlatPoint(environmentBounds, xT, zT);
-        var rayOrigin = flatPoint + Vector3.up * (environmentBounds.size.y + 80f);
-        if (Physics.Raycast(rayOrigin, Vector3.down, out var hit, environmentBounds.size.y + 160f, ~0, QueryTriggerInteraction.Ignore))
-        {
-            return hit.point + Vector3.up * verticalOffset;
-        }
-
-        return new Vector3(flatPoint.x, environmentBounds.center.y + verticalOffset, flatPoint.z);
+        var tile = CreatePrefabInstance(prefabName, position, scale, rotationY, parent);
+        AlignInstanceTopToY(tile, 0f);
+        ApplyNightPalette(tile, new Color(0.18f, 0.24f, 0.21f), 0.78f);
+        return tile;
     }
 
-    private static Vector3 BuildFlatPoint(Bounds environmentBounds, float xT, float zT)
+    private static GameObject CreatePropCluster(Transform parent, string prefabName, Vector3 position, Vector3 scale, float rotationY)
     {
-        return new Vector3(
-            Mathf.Lerp(environmentBounds.min.x, environmentBounds.max.x, xT),
-            0f,
-            Mathf.Lerp(environmentBounds.min.z, environmentBounds.max.z, zT));
+        var prop = CreatePrefabInstance(prefabName, position, scale, rotationY, parent);
+        AlignInstanceBaseToY(prop, 0f);
+        ApplyNightPalette(prop, new Color(0.22f, 0.28f, 0.24f), 0.72f);
+        return prop;
+    }
+
+    private static GameObject CreatePrefabInstance(string prefabName, Vector3 position, Vector3 scale, float rotationY, Transform parent)
+    {
+        var prefabPath = $"Assets/ThirdParty/SimpleNaturePack/Prefabs/{prefabName}.prefab";
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+        if (prefab == null)
+        {
+            Debug.LogWarning($"No se encontro el prefab {prefabPath}");
+            var fallback = new GameObject(prefabName);
+            if (parent != null)
+            {
+                fallback.transform.SetParent(parent, false);
+            }
+
+            fallback.transform.position = position;
+            fallback.transform.rotation = Quaternion.Euler(0f, rotationY, 0f);
+            fallback.transform.localScale = scale;
+            return fallback;
+        }
+
+        var instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+        instance.name = prefab.name;
+        if (parent != null)
+        {
+            instance.transform.SetParent(parent, false);
+        }
+
+        instance.transform.position = position;
+        instance.transform.rotation = Quaternion.Euler(0f, rotationY, 0f);
+        instance.transform.localScale = scale;
+        return instance;
+    }
+
+    private static void ApplyNightPalette(GameObject root, Color tint, float brightnessMultiplier)
+    {
+        foreach (var renderer in root.GetComponentsInChildren<Renderer>())
+        {
+            if (renderer.sharedMaterial == null)
+            {
+                continue;
+            }
+
+            renderer.sharedMaterial = CreateNightMaterial(
+                $"{renderer.sharedMaterial.name}_Night_{root.name}",
+                renderer.sharedMaterial,
+                tint,
+                brightnessMultiplier);
+        }
+    }
+
+    private static Material CreateNightMaterial(string materialName, Material sourceMaterial, Color tint, float brightnessMultiplier)
+    {
+        var shader = Shader.Find("Universal Render Pipeline/Lit");
+        var material = shader != null
+            ? new Material(shader)
+            : new Material(sourceMaterial != null ? sourceMaterial : new Material(Shader.Find("Standard")));
+        material.name = materialName;
+
+        var baseColor = sourceMaterial != null && sourceMaterial.HasProperty("_BaseColor")
+            ? sourceMaterial.GetColor("_BaseColor")
+            : sourceMaterial != null && sourceMaterial.HasProperty("_Color")
+                ? sourceMaterial.color
+                : Color.white;
+        var moonlitColor = Color.Lerp(baseColor * brightnessMultiplier, tint, 0.35f);
+        material.color = moonlitColor;
+
+        if (material.HasProperty("_BaseColor"))
+        {
+            material.SetColor("_BaseColor", moonlitColor);
+        }
+
+        if (material.HasProperty("_Smoothness"))
+        {
+            material.SetFloat("_Smoothness", 0.18f);
+        }
+
+        var baseMap = sourceMaterial != null && sourceMaterial.HasProperty("_BaseMap")
+            ? sourceMaterial.GetTexture("_BaseMap")
+            : sourceMaterial != null && sourceMaterial.HasProperty("_MainTex")
+                ? sourceMaterial.GetTexture("_MainTex")
+                : null;
+        if (baseMap != null)
+        {
+            if (material.HasProperty("_BaseMap"))
+            {
+                material.SetTexture("_BaseMap", baseMap);
+            }
+
+            if (material.HasProperty("_MainTex"))
+            {
+                material.SetTexture("_MainTex", baseMap);
+            }
+        }
+
+        return material;
+    }
+
+    private static void AlignInstanceBaseToY(GameObject instance, float targetY)
+    {
+        if (instance == null || !TryGetCombinedRendererBounds(instance, out var bounds))
+        {
+            return;
+        }
+
+        var position = instance.transform.position;
+        position.y += targetY - bounds.min.y;
+        instance.transform.position = position;
+    }
+
+    private static void AlignInstanceTopToY(GameObject instance, float targetY)
+    {
+        if (instance == null || !TryGetCombinedRendererBounds(instance, out var bounds))
+        {
+            return;
+        }
+
+        var position = instance.transform.position;
+        position.y += targetY - bounds.max.y;
+        instance.transform.position = position;
+    }
+
+    private static bool TryGetCombinedRendererBounds(GameObject instance, out Bounds bounds)
+    {
+        var renderers = instance.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0)
+        {
+            bounds = default;
+            return false;
+        }
+
+        bounds = renderers[0].bounds;
+        for (var i = 1; i < renderers.Length; i++)
+        {
+            bounds.Encapsulate(renderers[i].bounds);
+        }
+
+        return true;
     }
 
     private static void EnsureTextureImportSettings()
     {
-        var normalPath = $"{TextureFolder}/escenario_3_normalMap.jpg";
+        var normalPath = $"{ScenarioEscena3TexturePrefix}_normal.png";
         if (AssetImporter.GetAtPath(normalPath) is TextureImporter normalImporter)
         {
             if (normalImporter.textureType != TextureImporterType.NormalMap)
@@ -531,13 +754,23 @@ public static class LightChaseWaterLevelBuilder
             }
         }
 
-        var metalPath = $"{TextureFolder}/escenario_3_metallicRoughness.jpg";
+        var metalPath = $"{ScenarioEscena3TexturePrefix}_metallic.png";
         if (AssetImporter.GetAtPath(metalPath) is TextureImporter metalImporter)
         {
             if (metalImporter.sRGBTexture)
             {
                 metalImporter.sRGBTexture = false;
                 metalImporter.SaveAndReimport();
+            }
+        }
+
+        var roughnessPath = $"{ScenarioEscena3TexturePrefix}_roughness.png";
+        if (AssetImporter.GetAtPath(roughnessPath) is TextureImporter roughnessImporter)
+        {
+            if (roughnessImporter.sRGBTexture)
+            {
+                roughnessImporter.sRGBTexture = false;
+                roughnessImporter.SaveAndReimport();
             }
         }
     }
@@ -554,12 +787,15 @@ public static class LightChaseWaterLevelBuilder
             return;
         }
 
-        var material = new Material(shader) { name = "Scenario3_Lit" };
+        var sourceMaterial = AssetDatabase.LoadAssetAtPath<Material>(ScenarioEscena3MaterialPath);
+        var material = sourceMaterial != null ? new Material(sourceMaterial) : new Material(shader);
+        material.name = "Scenario3_Lit";
+        material.shader = shader;
 
-        var baseColor = AssetDatabase.LoadAssetAtPath<Texture2D>($"{TextureFolder}/escenario_3_baseColor.jpg");
-        var metalRough = AssetDatabase.LoadAssetAtPath<Texture2D>($"{TextureFolder}/escenario_3_metallicRoughness.jpg");
-        var normalMap = AssetDatabase.LoadAssetAtPath<Texture2D>($"{TextureFolder}/escenario_3_normalMap.jpg");
-        var emission = AssetDatabase.LoadAssetAtPath<Texture2D>($"{TextureFolder}/escenario_3_emission.jpg");
+        var baseColor = AssetDatabase.LoadAssetAtPath<Texture2D>($"{ScenarioEscena3TexturePrefix}.png");
+        var metal = AssetDatabase.LoadAssetAtPath<Texture2D>($"{ScenarioEscena3TexturePrefix}_metallic.png");
+        var normalMap = AssetDatabase.LoadAssetAtPath<Texture2D>($"{ScenarioEscena3TexturePrefix}_normal.png");
+        var emission = AssetDatabase.LoadAssetAtPath<Texture2D>($"{ScenarioEscena3TexturePrefix}_emission.png");
 
         if (baseColor != null)
         {
@@ -567,9 +803,9 @@ public static class LightChaseWaterLevelBuilder
             material.SetColor("_BaseColor", Color.white);
         }
 
-        if (metalRough != null)
+        if (metal != null)
         {
-            material.SetTexture("_MetallicGlossMap", metalRough);
+            material.SetTexture("_MetallicGlossMap", metal);
             material.SetFloat("_Metallic", 1f);
             material.SetFloat("_Smoothness", 0.5f);
         }
@@ -586,7 +822,7 @@ public static class LightChaseWaterLevelBuilder
             material.EnableKeyword("_EMISSION");
             material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
             material.SetTexture("_EmissionMap", emission);
-            material.SetColor("_EmissionColor", Color.white);
+            material.SetColor("_EmissionColor", Color.white * 1.2f);
         }
 
         var renderers = environment.GetComponentsInChildren<Renderer>();
@@ -601,7 +837,7 @@ public static class LightChaseWaterLevelBuilder
             renderer.sharedMaterials = materials;
         }
 
-        var textureCount = (baseColor != null ? 1 : 0) + (metalRough != null ? 1 : 0)
+        var textureCount = (baseColor != null ? 1 : 0) + (metal != null ? 1 : 0)
             + (normalMap != null ? 1 : 0) + (emission != null ? 1 : 0);
         Debug.Log($"Scenario3 material applied to {renderers.Length} renderers with {textureCount}/4 textures.");
     }
@@ -648,7 +884,8 @@ public static class LightChaseWaterLevelBuilder
         {
             PrototypeLevelScenePath,
             NatureLevelScenePath,
-            WaterLevelScenePath
+            WaterLevelScenePath,
+            LakeLevelScenePath
         };
 
         var existingScenes = EditorBuildSettings.scenes;
