@@ -1,0 +1,96 @@
+Assets/Project/LightChasePrototype/Editor/LightChaseWaterLevelBuilder.cs
+  s_31499bef36fa1a::t_1c4a8f402e769b 589-590
+Assets/Project/LightChasePrototype/Editor/LightChasePrototypeBuilder.cs
+  s_31499bef36fa1a::t_4a01698c7c0d56 254-255
+Assets/Project/LightChasePrototype/Tests/EditMode/MainMenuControllerTests.cs
+  s_4e9d2d04ddbfa4::t_84dfa377b3b176 364-392
+  s_823a75e555ae36::t_161612519c458e 393-413
+  s_4e9d2d04ddbfa4::t_bd3a7b77b976b3 22
+  s_4e9d2d04ddbfa4::t_3241dc33bc46df 84
+Assets/Project/LightChasePrototype/Tests/EditMode/GlobalUiControllerTests.cs
+  s_4e9d2d04ddbfa4::t_0d0e97f0ea2ed1 8-13,20
+  s_4e9d2d04ddbfa4::t_380a342574d150 114-146
+Assets/Project/LightChasePrototype/Editor/LightChaseNatureLevelBuilder.cs
+  s_31499bef36fa1a::t_a6b507da453449 347-348
+Assets/Project/LightChasePrototype/Tests/EditMode/EnemyLightSeekerTests.cs
+  s_31499bef36fa1a::t_1e5d0cf599fa27 109,114,119-121,123,125-129,132-133,135-146,149-150
+Assets/Project/LightChasePrototype/Tests/Editor/EnemyBuilderTextureTests.cs
+  s_31499bef36fa1a::t_f685d6e7d6cda1 1-95
+Assets/Project/LightChasePrototype/Scripts/UI/GlobalUiController.cs
+  s_4e9d2d04ddbfa4::t_7282466649d061 24-39
+  s_4e9d2d04ddbfa4::t_8ae1336035ee4c 122-126,130-132
+  s_4e9d2d04ddbfa4::t_bb6455c78e5199 239
+Assets/Project/LightChasePrototype/Tests/Editor/EnemySpawnerTests.cs
+  s_31499bef36fa1a::t_8c7a9526b90ebf 80-119,123-134
+  s_31499bef36fa1a::t_2b2c8a21e87907 2,6
+  s_31499bef36fa1a::t_253ab576eab487 120-122
+Assets/Project/LightChasePrototype/Scripts/UI/MainMenuController.cs
+  s_4e9d2d04ddbfa4::t_7878dc3a6c32e8 134-136
+  s_4e9d2d04ddbfa4::t_71630558c0ad01 890-894
+  s_4e9d2d04ddbfa4::t_7460fb529d15b8 181
+  s_823a75e555ae36::t_64836a739b074b 377,382-386,388
+  s_823a75e555ae36::t_d8482df430bc8e 349,354
+  s_4e9d2d04ddbfa4::t_edc172cd4e8666 790
+  s_4e9d2d04ddbfa4::t_a32a105a64874e 38
+  s_4e9d2d04ddbfa4::t_494adc8a98ce25 643
+  s_4e9d2d04ddbfa4::t_8f62dfa6dbe79f 752
+  s_823a75e555ae36::t_7c12f959e19a6f 312,317
+Assets/Project/LightChasePrototype/Editor/EnemyBuilder.cs
+  s_e0d2455ef30369::t_24cec1adccf41d 123-129,139,145,153-157,162-167
+  s_e0d2455ef30369::t_58d21c8b30ddf1 755
+  s_e0d2455ef30369::t_1ca6471818ff65 23-25,31
+  s_31499bef36fa1a::t_959d069f541061 556-557,566-584,592,625-633,636,643-649
+  s_e0d2455ef30369::t_30af10a1e3710d 26-30
+Assets/Project/LightChasePrototype/Editor/LightChaseLakeLevelBuilder.cs
+  s_31499bef36fa1a::t_45965e04740e68 418-419
+Assets/Project/LightChasePrototype/Scripts/Gameplay/EnemyLightSeeker.cs
+  s_e0d2455ef30369::t_53d3d4a9ec85c4 70-91
+  s_e0d2455ef30369::t_3e22762379d581 19-23
+  s_31499bef36fa1a::t_1b417d2b253c37 207-213
+  s_e0d2455ef30369::t_37d0b621a820d4 59
+  s_31499bef36fa1a::t_fc93f416513c94 67-69,92
+Assets/Project/LightChasePrototype/Editor/EnemySpawner.cs
+  s_e0d2455ef30369::t_f9630b7ec362f7 94-97
+  s_31499bef36fa1a::t_4378a7c45cb732 58,75-93,98-106
+  s_31499bef36fa1a::t_3478bd64921e17 4,10-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.8",
+  "base_commit_sha": "b7e86dc9b4bfc3968a691d901e20f2e1c0fafa38",
+  "prompts": {},
+  "sessions": {
+    "s_31499bef36fa1a": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "8dd63a40-a1fa-40b8-ac18-553ffb08c89b",
+        "model": "claude-opus-4-7-high"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    },
+    "s_4e9d2d04ddbfa4": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "c43a5b74-d9b5-439d-9d67-21823ae7f728",
+        "model": "claude-opus-4-7-high"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    },
+    "s_823a75e555ae36": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "bdc41a9e-885f-4b87-b63a-5ab535ecc8f7",
+        "model": "claude-opus-4-7-high"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    },
+    "s_e0d2455ef30369": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "d83838e5-b7fd-4025-984b-0639c6f19051",
+        "model": "claude-opus-4-7-high"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    }
+  }
+}
