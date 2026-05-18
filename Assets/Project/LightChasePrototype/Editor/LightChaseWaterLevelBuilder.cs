@@ -364,24 +364,70 @@ public static class LightChaseWaterLevelBuilder
         return environment;
     }
 
+    // El Keep es un FBX denso (decenas de submeshes muy detallados). Generar un
+    // MeshCollider por cada submesh dispara un cook de PhysX por mesh, lo que hace
+    // que abrir la escena tarde varios segundos. Lo reemplazamos por un BoxCollider
+    // simplificado que envuelve el footprint del Keep: el jugador no puede atravesarlo
+    // y el coste de carga cae a casi cero.
+    //
+    // Adicionalmente, todo el sub-tree del Keep se mueve a la layer "Ignore Raycast"
+    // para que el NavMeshSurface lo excluya por layerMask y no bake-e geometria densa.
     private static void EnsureRenderMeshesHaveColliders(GameObject root)
     {
-        foreach (var meshFilter in root.GetComponentsInChildren<MeshFilter>())
+        StripExistingMeshColliders(root);
+
+        var ignoreRaycastLayer = LayerMask.NameToLayer("Ignore Raycast");
+        if (ignoreRaycastLayer >= 0)
         {
-            if (meshFilter.sharedMesh == null)
-            {
-                continue;
-            }
+            SetLayerRecursively(root, ignoreRaycastLayer);
+        }
 
-            if (!meshFilter.TryGetComponent<MeshCollider>(out var meshCollider))
-            {
-                meshCollider = meshFilter.gameObject.AddComponent<MeshCollider>();
-            }
+        if (!TryGetCombinedRendererBounds(root, out var worldBounds))
+        {
+            return;
+        }
 
-            meshCollider.sharedMesh = meshFilter.sharedMesh;
-            meshCollider.cookingOptions = MeshColliderCookingOptions.CookForFasterSimulation
-                | MeshColliderCookingOptions.EnableMeshCleaning
-                | MeshColliderCookingOptions.WeldColocatedVertices;
+        var colliderHost = new GameObject("KeepBlocker");
+        colliderHost.transform.SetParent(root.transform, worldPositionStays: true);
+        colliderHost.transform.position = worldBounds.center;
+        colliderHost.transform.rotation = Quaternion.identity;
+        colliderHost.transform.localScale = Vector3.one;
+        colliderHost.layer = 0;
+
+        var box = colliderHost.AddComponent<BoxCollider>();
+        box.center = Vector3.zero;
+        var lossy = root.transform.lossyScale;
+        var safeLossy = new Vector3(
+            Mathf.Approximately(lossy.x, 0f) ? 1f : lossy.x,
+            Mathf.Approximately(lossy.y, 0f) ? 1f : lossy.y,
+            Mathf.Approximately(lossy.z, 0f) ? 1f : lossy.z);
+        var localSize = new Vector3(
+            worldBounds.size.x / safeLossy.x,
+            worldBounds.size.y / safeLossy.y,
+            worldBounds.size.z / safeLossy.z);
+        box.size = new Vector3(Mathf.Abs(localSize.x), Mathf.Abs(localSize.y), Mathf.Abs(localSize.z));
+    }
+
+    private static void StripExistingMeshColliders(GameObject root)
+    {
+        foreach (var existing in root.GetComponentsInChildren<MeshCollider>(true))
+        {
+            Object.DestroyImmediate(existing);
+        }
+
+        var legacyHost = root.transform.Find("KeepBlocker");
+        if (legacyHost != null)
+        {
+            Object.DestroyImmediate(legacyHost.gameObject);
+        }
+    }
+
+    private static void SetLayerRecursively(GameObject target, int layer)
+    {
+        target.layer = layer;
+        foreach (Transform child in target.transform)
+        {
+            SetLayerRecursively(child.gameObject, layer);
         }
     }
 
@@ -558,24 +604,10 @@ public static class LightChaseWaterLevelBuilder
 
     private static void ConfigureExit()
     {
-        var exitObject = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        exitObject.name = "ExitPortal";
-        exitObject.transform.position = new Vector3(26f, 1.55f, 28f);
-        exitObject.transform.localScale = new Vector3(1.5f, 1.35f, 1.5f);
-
-        var renderer = exitObject.GetComponent<Renderer>();
-        renderer.sharedMaterial = CreateLitMaterial(
-            "WaterLevelExit",
-            new Color(0.16f, 0.42f, 0.7f),
-            new Color(0.08f, 0.48f, 0.95f));
-
-        var collider = exitObject.GetComponent<CapsuleCollider>();
-        collider.isTrigger = true;
-        collider.height = 2.2f;
-        collider.radius = 0.9f;
-
-        var exitPortal = exitObject.AddComponent<ExitPortal>();
-        exitPortal.ConfigureRenderer(renderer);
+        // Portal canon compartido (Meshy). El bioma cambia pero el remate
+        // visual del objetivo es el mismo en todos los niveles. Atravesable
+        // via trigger isTrigger=true del propio root del portal.
+        ExitPortalBuilder.BuildPortal(new Vector3(26f, 0f, 28f));
     }
 
     private static void ConfigureNavigation()
@@ -584,7 +616,12 @@ public static class LightChaseWaterLevelBuilder
         var navMeshSurface = GetOrAddComponent<NavMeshSurface>(navigationObject);
         navMeshSurface.collectObjects = CollectObjects.All;
         navMeshSurface.useGeometry = NavMeshCollectGeometry.RenderMeshes;
-        navMeshSurface.layerMask = ~0;
+
+        // Excluimos "Ignore Raycast" porque ahi vive el Keep (FBX denso de Meshy).
+        // Bakear sus submeshes hace que la carga de la escena tarde varios segundos
+        // y no aporta nada: el Keep ya esta bloqueado por un BoxCollider simplificado.
+        var ignoreRaycastLayer = LayerMask.NameToLayer("Ignore Raycast");
+        navMeshSurface.layerMask = ignoreRaycastLayer >= 0 ? ~(1 << ignoreRaycastLayer) : ~0;
         navMeshSurface.BuildNavMesh();
 
         EnemySpawner.RebindEnemiesToNavMesh();

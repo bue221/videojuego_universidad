@@ -16,11 +16,16 @@ namespace LightChasePrototype
         private const float WalkAnimatorSpeed = 1f;
         private const float ChaseAnimatorSpeed = 1.35f;
 
-        // El NavMesh queda voxelizado algunos cm sobre el piso visible. Sin compensar,
-        // el agente snap-ea a la superficie del NavMesh y el modelo flota. Este offset
-        // negativo baja al transform respecto a la posicion del agente sobre el NavMesh
-        // para que los pies apoyen sobre el piso real.
-        private const float NavMeshAgentBaseOffset = -0.15f;
+        // Distancia hacia arriba desde el pivote para originar el raycast que busca
+        // el piso. Suficiente para sortear la holgura del NavMesh y la altura del
+        // modelo sin chocar con techos bajos antes del piso.
+        private const float GroundProbeRayUp = 1.5f;
+
+        // Distancia maxima hacia abajo del raycast antes de declarar "sin piso debajo".
+        private const float GroundProbeRayDown = 5f;
+
+        // Margen anti Z-fighting: deja los pies justo encima del collider del piso.
+        private const float GroundProbeContactEpsilon = 0.01f;
 
         [SerializeField] private float lightSignatureMultiplier = 1.85f;
         [SerializeField] private float maximumDetectionRange = 20f;
@@ -29,6 +34,10 @@ namespace LightChasePrototype
         [SerializeField] private float chaseMoveSpeed = DefaultChaseMoveSpeed;
         [SerializeField] private float contactDamageRange = 1.65f;
         [SerializeField] private float damageInterval = 1.2f;
+        [SerializeField] private float patrolRadius = 12f;
+        [SerializeField] private float patrolArrivalDistance = 1.25f;
+        [SerializeField] private float patrolIdleMin = 1.25f;
+        [SerializeField] private float patrolIdleMax = 2.75f;
         [SerializeField] private float preDetectionWarningPadding = 5.5f;
         [SerializeField] private float minimumWarningVolume = 0.05f;
         [SerializeField] private float alertWarningVolume = 0.22f;
@@ -40,6 +49,15 @@ namespace LightChasePrototype
         [SerializeField] private Light enemyGlow;
         [SerializeField] private Light enemyBodyGlow;
 
+        // Offset vertical entre el pivote del transform del enemigo y los pies VISIBLES
+        // del modelo. Se descubre con un raycast al piso en Start: si el modelo aparece
+        // flotando o hundido, este valor se calibra para que los pies queden apoyados
+        // sobre el primer collider que haya debajo. Lo exponemos como SerializeField
+        // por si el raycast falla (escena sin colliders en el piso) y hay que afinar a
+        // mano.
+        [SerializeField] private float manualPivotToFeetOffset = 0f;
+        [SerializeField] private bool autoCalibrateGroundOffset = true;
+
         private NavMeshAgent _agent;
         private Animator _animator;
         private AudioSource _warningAudioSource;
@@ -50,13 +68,17 @@ namespace LightChasePrototype
         private float _damageTimer;
         private float _glowBaseIntensity;
         private float _bodyGlowBaseIntensity;
+        private Vector3 _patrolOrigin;
+        private Vector3 _patrolDestination;
+        private bool _hasPatrolTarget;
+        private float _patrolIdleTimer;
+        private bool _wasChasingLastFrame;
 
         private void Awake()
         {
             ApplyFallbackBalanceForLegacyScenes();
             _agent = GetComponent<NavMeshAgent>();
             _agent.speed = baseMoveSpeed;
-            _agent.baseOffset = NavMeshAgentBaseOffset;
             _animator = ResolveAnimator();
             _warningAudioSource = GetComponent<AudioSource>();
             ConfigureWarningAudio();
@@ -119,10 +141,139 @@ namespace LightChasePrototype
         {
             _playerLightState = Object.FindAnyObjectByType<PlayerLightState>();
             _levelManager = Object.FindAnyObjectByType<PrototypeLevelManager>();
-            if (_playerLightState != null)
+            if (_playerTransform == null && _playerLightState != null)
             {
                 _playerTransform = _playerLightState.transform;
             }
+
+            CalibrateBaseOffsetFromGround();
+            _patrolOrigin = transform.position;
+        }
+
+        // Hace que los pies VISIBLES del enemigo apoyen sobre el piso real, no sobre
+        // la superficie voxelizada del NavMesh. La estrategia:
+        //
+        //   1. Mide donde esta el piso debajo del pivote con un raycast (fisica real).
+        //   2. Estima cuanto sobresale el modelo por debajo del pivote usando los
+        //      bounds de los renderers (mas un bias manual para ajustar a ojo si los
+        //      bounds estan inflados).
+        //   3. Calcula que valor deberia tener pivote.y para que pies == piso y ajusta
+        //      NavMeshAgent.baseOffset al delta requerido. El agente respeta ese offset
+        //      en el siguiente Update y deja al enemigo apoyado.
+        //
+        // Sirve para corregir tanto la voxelizacion del NavMesh (NavMesh por encima del
+        // piso visible) como plataformas a distintas alturas (lago, mesetas, escalones).
+        private void CalibrateBaseOffsetFromGround()
+        {
+            if (_agent == null || !autoCalibrateGroundOffset)
+            {
+                ApplyManualOffsetIfRequested();
+                return;
+            }
+
+            if (!TryRaycastGroundBelow(out var groundY))
+            {
+                ApplyManualOffsetIfRequested();
+                return;
+            }
+
+            // pivote a pies: lo aproximamos por bounds porque es la informacion mas
+            // estable disponible sin bakear mesh. Si bounds esta inflado, el usuario
+            // puede afinar con manualPivotToFeetOffset.
+            var feetBelowPivot = EstimateFeetOffsetBelowPivot();
+
+            // Queremos: pies del modelo apoyan en groundY + epsilon.
+            // Como pivot = pies + feetBelowPivot, entonces pivotDeseado = groundY + epsilon + feetBelowPivot.
+            var desiredPivotY = groundY + GroundProbeContactEpsilon + feetBelowPivot;
+            var deltaY = desiredPivotY - _agent.nextPosition.y;
+            _agent.baseOffset += deltaY;
+        }
+
+        private void ApplyManualOffsetIfRequested()
+        {
+            if (Mathf.Approximately(manualPivotToFeetOffset, 0f))
+            {
+                return;
+            }
+
+            _agent.baseOffset += manualPivotToFeetOffset;
+        }
+
+        private bool TryRaycastGroundBelow(out float groundY)
+        {
+            groundY = 0f;
+            var pivotXZ = transform.position;
+            var rayOrigin = new Vector3(pivotXZ.x, pivotXZ.y + GroundProbeRayUp, pivotXZ.z);
+            var ownCollider = GetComponent<Collider>();
+            var hadCollider = ownCollider != null && ownCollider.enabled;
+            if (hadCollider)
+            {
+                ownCollider.enabled = false;
+            }
+
+            var foundGround = Physics.Raycast(
+                rayOrigin,
+                Vector3.down,
+                out var hit,
+                GroundProbeRayUp + GroundProbeRayDown,
+                ~0,
+                QueryTriggerInteraction.Ignore);
+
+            if (hadCollider)
+            {
+                ownCollider.enabled = true;
+            }
+
+            if (!foundGround)
+            {
+                return false;
+            }
+
+            groundY = hit.point.y;
+            return true;
+        }
+
+        private float EstimateFeetOffsetBelowPivot()
+        {
+            // Suma el offset configurado manualmente (puede ser 0). Sumarlo aqui en
+            // lugar de mutar baseOffset deja el calculo en una sola formula.
+            var manualBias = manualPivotToFeetOffset;
+
+            var renderers = GetComponentsInChildren<Renderer>(true);
+            if (renderers == null || renderers.Length == 0)
+            {
+                return manualBias;
+            }
+
+            var minY = float.PositiveInfinity;
+            foreach (var r in renderers)
+            {
+                if (r == null || !r.enabled)
+                {
+                    continue;
+                }
+
+                if (!(r is MeshRenderer) && !(r is SkinnedMeshRenderer))
+                {
+                    continue;
+                }
+
+                var bMin = r.bounds.min.y;
+                if (bMin < minY)
+                {
+                    minY = bMin;
+                }
+            }
+
+            if (float.IsPositiveInfinity(minY))
+            {
+                return manualBias;
+            }
+
+            // feetBelowPivot positivo si los pies estan POR DEBAJO del pivote (caso
+            // tipico de AlignModelFeetToParent funcionando bien) y negativo si los
+            // pies estan POR ENCIMA del pivote (los famosos bounds inflados).
+            return (transform.position.y - minY) + manualBias;
         }
 
         private void Update()
@@ -130,6 +281,7 @@ namespace LightChasePrototype
             if (_playerLightState == null || _playerTransform == null)
             {
                 UpdateAnimator(IdleAnimatorSpeed, isChasing: false);
+                UpdatePatrol();
                 return;
             }
 
@@ -142,6 +294,7 @@ namespace LightChasePrototype
                     _agent.ResetPath();
                 }
 
+                _hasPatrolTarget = false;
                 UpdateAnimator(IdleAnimatorSpeed, isChasing: false);
                 UpdateGlow(0f);
                 return;
@@ -161,19 +314,35 @@ namespace LightChasePrototype
                 : baseMoveSpeed;
 
             UpdateWarningAudio(warningLevel, isChasing);
-            UpdateAnimator(ResolveAnimatorSpeed(isChasing, isAlerted), isChasing);
-            UpdateGlow(isChasing ? 1f : isAlerted ? 0.5f : 0f);
 
             if (!isChasing)
             {
-                if (_agent.hasPath)
+                _damageTimer = 0f;
+
+                // Al salir de chase, el agente arrastra el ultimo SetDestination al
+                // jugador. Si no limpiamos ese path, UpdatePatrol piensa que ya hay
+                // un destino vivo y se queda quieto hasta que expire el chase path.
+                if (_wasChasingLastFrame && _agent != null && _agent.isOnNavMesh && _agent.hasPath)
                 {
                     _agent.ResetPath();
+                    _hasPatrolTarget = false;
+                    _patrolIdleTimer = 0f;
                 }
 
-                _damageTimer = 0f;
+                UpdatePatrol();
+                var isPatrolling = IsPatrollingMovement();
+                UpdateAnimator(ResolveAnimatorSpeed(false, isAlerted || isPatrolling), isChasing: false);
+                UpdateGlow(isAlerted ? 0.5f : 0f);
+                _wasChasingLastFrame = false;
                 return;
             }
+
+            UpdateAnimator(ResolveAnimatorSpeed(true, isAlerted), isChasing: true);
+            UpdateGlow(1f);
+
+            _hasPatrolTarget = false;
+            _patrolIdleTimer = 0f;
+            _wasChasingLastFrame = true;
 
             TryDamagePlayer(distance);
 
@@ -184,7 +353,150 @@ namespace LightChasePrototype
             }
 
             _repathTimer = repathInterval;
+            if (_agent.isStopped)
+            {
+                _agent.isStopped = false;
+            }
+
             _agent.SetDestination(_playerTransform.position);
+        }
+
+        // Animator debe verse caminando tanto cuando el agente ya tiene velocidad
+        // como en los primeros frames despues de SetDestination, donde la path
+        // todavia se esta calculando y velocity == 0 pero el enemigo SI se va a
+        // mover. Sin esto, cada nuevo waypoint genera un parpadeo de idle.
+        private bool IsPatrollingMovement()
+        {
+            if (_agent == null || !_agent.isOnNavMesh)
+            {
+                return false;
+            }
+
+            if (_agent.pathPending)
+            {
+                return true;
+            }
+
+            if (_hasPatrolTarget && _agent.hasPath)
+            {
+                return true;
+            }
+
+            return _agent.velocity.sqrMagnitude > 0.01f;
+        }
+
+        // Patrullaje sobre el NavMesh: el enemigo camina entre puntos aleatorios
+        // alrededor de su origen para que el mapa se sienta vivo aun cuando el
+        // jugador no esta cerca. Al detectar la luz, el flujo principal de Update
+        // limpia el estado y entra inmediatamente en persecucion.
+        //
+        // No se usa NavMeshAgent.remainingDistance para detectar arribo porque
+        // devuelve 0 durante el frame en que el path aun se esta calculando
+        // (pathPending == true), o tambien apenas pathPending baja a false antes
+        // de que el agente arranque a moverse. El resultado era que el enemigo
+        // daba un par de pasos y se quedaba "llegado" enseguida. En su lugar
+        // comparamos la posicion XZ contra el destino guardado, que es estable.
+        private void UpdatePatrol()
+        {
+            if (_agent == null || !_agent.isOnNavMesh)
+            {
+                return;
+            }
+
+            if (_hasPatrolTarget)
+            {
+                if (_agent.pathPending)
+                {
+                    return;
+                }
+
+                if (HasArrivedAt(_patrolDestination))
+                {
+                    _hasPatrolTarget = false;
+                    _patrolIdleTimer = Random.Range(patrolIdleMin, patrolIdleMax);
+                    if (_agent.hasPath)
+                    {
+                        _agent.ResetPath();
+                    }
+                }
+                else
+                {
+                    return;
+                }
+            }
+
+            if (_patrolIdleTimer > 0f)
+            {
+                _patrolIdleTimer -= Time.deltaTime;
+                return;
+            }
+
+            if (TryFindPatrolDestination(out var destination))
+            {
+                if (_agent.isStopped)
+                {
+                    _agent.isStopped = false;
+                }
+
+                if (_agent.SetDestination(destination))
+                {
+                    _patrolDestination = destination;
+                    _hasPatrolTarget = true;
+                }
+                else
+                {
+                    _patrolIdleTimer = patrolIdleMin;
+                }
+            }
+            else
+            {
+                _patrolIdleTimer = patrolIdleMin;
+            }
+        }
+
+        private bool HasArrivedAt(Vector3 destination)
+        {
+            // Comparamos en XZ para no contar mal por diferencia de altura entre
+            // el pivote del agente y el destino sampleado en el NavMesh.
+            var here = transform.position;
+            var dx = here.x - destination.x;
+            var dz = here.z - destination.z;
+            var distanceSqr = (dx * dx) + (dz * dz);
+            var threshold = Mathf.Max(patrolArrivalDistance, _agent.stoppingDistance + 0.1f);
+            return distanceSqr <= threshold * threshold;
+        }
+
+        private bool TryFindPatrolDestination(out Vector3 destination)
+        {
+            const int maxAttempts = 8;
+            const float minStepFromCurrent = 2.5f;
+
+            for (var attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                var randomOffset = Random.insideUnitSphere * patrolRadius;
+                randomOffset.y = 0f;
+                var candidate = _patrolOrigin + randomOffset;
+                if (!NavMesh.SamplePosition(candidate, out var hit, patrolRadius, NavMesh.AllAreas))
+                {
+                    continue;
+                }
+
+                // Evita elegir un destino casi encima del enemigo, que daria la
+                // sensacion de "se movio dos pasos y se quedo".
+                var here = transform.position;
+                var dx = hit.position.x - here.x;
+                var dz = hit.position.z - here.z;
+                if ((dx * dx) + (dz * dz) < minStepFromCurrent * minStepFromCurrent)
+                {
+                    continue;
+                }
+
+                destination = hit.position;
+                return true;
+            }
+
+            destination = _patrolOrigin;
+            return false;
         }
 
         private static float ResolveAnimatorSpeed(bool isChasing, bool isAlerted)
@@ -289,13 +601,16 @@ namespace LightChasePrototype
                 return;
             }
 
-            enemyGlow.intensity = Mathf.Lerp(_glowBaseIntensity * 0.65f, _glowBaseIntensity * 1.4f, intensityFactor);
-            enemyGlow.color = intensityFactor > 0.8f
-                ? new Color(1f, 0.45f, 0.25f)
-                : intensityFactor > 0.3f
-                    ? new Color(1f, 0.72f, 0.4f)
-                    : new Color(1f, 0.85f, 0.6f);
-        }
+        enemyGlow.intensity = Mathf.Lerp(_glowBaseIntensity * 0.65f, _glowBaseIntensity * 1.4f, intensityFactor);
+        // En idle/patrulla la luz es neutra para no contaminar el color real de la
+        // textura. Cuando el enemigo entra en alerta o chase la luz vira a calido y
+        // luego a rojo, comunicando peligro sin pintar al enemigo todo el tiempo.
+        enemyGlow.color = intensityFactor > 0.8f
+            ? new Color(1f, 0.5f, 0.3f)
+            : intensityFactor > 0.3f
+                ? new Color(1f, 0.85f, 0.6f)
+                : new Color(1f, 0.95f, 0.88f);
+    }
 
         private void UpdateBodyGlow(float intensityFactor)
         {
@@ -304,13 +619,13 @@ namespace LightChasePrototype
                 return;
             }
 
-            enemyBodyGlow.intensity = Mathf.Lerp(_bodyGlowBaseIntensity * 0.55f, _bodyGlowBaseIntensity * 1.6f, intensityFactor);
-            enemyBodyGlow.color = intensityFactor > 0.8f
-                ? new Color(1f, 0.4f, 0.2f)
-                : intensityFactor > 0.3f
-                    ? new Color(1f, 0.6f, 0.3f)
-                    : new Color(1f, 0.78f, 0.45f);
-        }
+        enemyBodyGlow.intensity = Mathf.Lerp(_bodyGlowBaseIntensity * 0.55f, _bodyGlowBaseIntensity * 1.6f, intensityFactor);
+        enemyBodyGlow.color = intensityFactor > 0.8f
+            ? new Color(1f, 0.45f, 0.25f)
+            : intensityFactor > 0.3f
+                ? new Color(1f, 0.78f, 0.45f)
+                : new Color(1f, 0.92f, 0.82f);
+    }
 
         private void ConfigureWarningAudio()
         {

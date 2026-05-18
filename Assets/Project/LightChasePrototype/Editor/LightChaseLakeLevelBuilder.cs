@@ -382,29 +382,10 @@ public static class LightChaseLakeLevelBuilder
 
     private static void ConfigureExit()
     {
-        var exitAnchor = CreatePrefabInstance("Rock_05", new Vector3(16f, 0f, 26f), new Vector3(1.45f, 1.55f, 1.45f), 10f, null);
-        exitAnchor.name = "ExitPortal";
-        AlignInstanceBaseToY(exitAnchor, 0f);
-
-        var portalCore = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        portalCore.name = "PortalCore";
-        portalCore.transform.SetParent(exitAnchor.transform, false);
-        portalCore.transform.localPosition = new Vector3(0f, 1.6f, 0f);
-        portalCore.transform.localScale = new Vector3(1.35f, 1.3f, 1.35f);
-
-        var renderer = portalCore.GetComponent<Renderer>();
-        renderer.sharedMaterial = CreateLitMaterial(
-            "LakeExitPortal",
-            new Color(0.16f, 0.42f, 0.7f),
-            new Color(0.08f, 0.48f, 0.95f));
-
-        var collider = portalCore.GetComponent<CapsuleCollider>();
-        collider.isTrigger = true;
-        collider.height = 2.2f;
-        collider.radius = 0.9f;
-
-        var exit = portalCore.AddComponent<ExitPortal>();
-        exit.ConfigureRenderer(renderer);
+        // Portal canon compartido (Meshy). Mantenemos el spot de salida sobre
+        // el promontorio del lago pero reemplazamos el ancla decorativa y el
+        // cilindro emisivo por el modelo unificado. Atravesable via trigger.
+        ExitPortalBuilder.BuildPortal(new Vector3(16f, 0f, 26f));
     }
 
     private static void ConfigureNavigation()

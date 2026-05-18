@@ -20,7 +20,6 @@ public static class LightChasePrototypeBuilder
     private const string CameraPrefabPath = "Assets/ThirdParty/StarterAssets/ThirdPersonController/Prefabs/PlayerFollowCamera.prefab";
     private const string GridWhiteMaterialPath = "Assets/ThirdParty/StarterAssets/Environment/Art/Materials/GridWhite_01_Mat.mat";
     private const string GridOrangeMaterialPath = "Assets/ThirdParty/StarterAssets/Environment/Art/Materials/GridOrange_01_Mat.mat";
-    private const string GridBlueMaterialPath = "Assets/ThirdParty/StarterAssets/Environment/Art/Materials/GridBlue_01_Mat.mat";
     [MenuItem("Tools/Prototype/Build Light Chase Level")]
     public static void BuildLevel()
     {
@@ -219,23 +218,10 @@ public static class LightChasePrototypeBuilder
 
     private static void ConfigureExit()
     {
-        var exit = Object.FindAnyObjectByType<ExitPortal>();
-        if (exit == null)
-        {
-            var exitObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            exitObject.name = "ExitPortal";
-            exitObject.transform.position = new Vector3(18f, 1.5f, 20f);
-            exitObject.transform.localScale = new Vector3(2.5f, 3f, 0.5f);
-
-            var renderer = exitObject.GetComponent<Renderer>();
-            renderer.sharedMaterial = AssetDatabase.LoadAssetAtPath<Material>(GridBlueMaterialPath);
-
-            var collider = exitObject.GetComponent<BoxCollider>();
-            collider.isTrigger = true;
-
-            exit = exitObject.AddComponent<ExitPortal>();
-            exit.ConfigureRenderer(renderer);
-        }
+        // Portal canon compartido: el visual Meshy va igual en todos los niveles
+        // y el trigger isTrigger=true permite atravesarlo para disparar
+        // ExitPortal.OnTriggerEnter. Ver skills/core/logica-global-light-chase.
+        ExitPortalBuilder.BuildPortal(new Vector3(18f, 0f, 20f));
     }
 
     private static void ConfigureNavigation()

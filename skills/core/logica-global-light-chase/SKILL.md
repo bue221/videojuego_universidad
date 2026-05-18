@@ -70,6 +70,8 @@ Estas reglas son obligatorias en todos los niveles actuales y futuros:
 - `X` puede variar por nivel, pero la regla de desbloqueo nunca cambia
 - el portal siempre empieza bloqueado
 - el jugador solo gana si entra al portal despues de cumplir el requisito
+- el portal usa el mismo modelo Meshy de `Assets/MeshyImports/Portal` en todos los niveles
+- el portal siempre es atravesable: el contacto se resuelve por un `Collider` con `isTrigger=true` y nunca debe bloquear fisicamente al jugador
 - el juego no es de combate; el enemigo existe para perseguir, alertar y castigar la exposicion
 - recoger progreso nunca debe sentirse gratis; mas progreso debe implicar mas peligro o mas presion
 
@@ -153,6 +155,8 @@ Esto SI puede variar por nivel:
 
 Esto NO puede variar:
 
+- el modelo visual del portal (siempre el asset Meshy compartido)
+- el portal atravesable por trigger (nunca bloquear al jugador)
 - la logica de portal bloqueado por progreso
 - la derrota por tiempo agotado
 - la perdida de vida por captura del enemigo

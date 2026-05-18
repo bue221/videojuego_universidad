@@ -42,12 +42,13 @@ No se vale hacer un nivel "bonito" pero desconectado del loop.
 3. `Assets/Project/LightChasePrototype/Scripts/Gameplay/EnemyLightSeeker.cs`
 4. `Assets/Project/LightChasePrototype/Scripts/Gameplay/PrototypeLevelManager.cs`
 5. `Assets/Project/LightChasePrototype/Scripts/Gameplay/ExitPortal.cs`
-6. `Assets/Project/LightChasePrototype/Scripts/Gameplay/StarPickup.cs`
-7. `Assets/Project/LightChasePrototype/Scripts/UI/GameHudController.cs`
-8. `Assets/Project/LightChasePrototype/Scripts/UI/MainMenuController.cs`
-9. `Assets/Project/LightChasePrototype/Scripts/Gameplay/LightChaseLevelCatalog.cs`
-10. `Assets/Project/LightChasePrototype/Editor/LightChasePrototypeBuilder.cs`
-11. `Assets/Project/LightChasePrototype/Editor/LightChaseNatureLevelBuilder.cs`
+6. `Assets/Project/LightChasePrototype/Editor/ExitPortalBuilder.cs`
+7. `Assets/Project/LightChasePrototype/Scripts/Gameplay/StarPickup.cs`
+8. `Assets/Project/LightChasePrototype/Scripts/UI/GameHudController.cs`
+9. `Assets/Project/LightChasePrototype/Scripts/UI/MainMenuController.cs`
+10. `Assets/Project/LightChasePrototype/Scripts/Gameplay/LightChaseLevelCatalog.cs`
+11. `Assets/Project/LightChasePrototype/Editor/LightChasePrototypeBuilder.cs`
+12. `Assets/Project/LightChasePrototype/Editor/LightChaseNatureLevelBuilder.cs`
 
 ## Regla madre
 
@@ -92,6 +93,15 @@ Si un nivel usa otro canvas, debes:
 1. justificar por que existe
 2. demostrar que mantiene las mismas metricas visibles
 3. validar que `GameHudController.EnsureHudExists(...)` siga funcionando
+
+## Reglas del portal de salida
+
+Para preservar la lectura del objetivo entre niveles, el portal NO se construye a mano ni con primitivos por nivel.
+
+- Toda construccion del portal pasa por `ExitPortalBuilder.BuildPortal(worldPosition)` desde el builder del nivel.
+- El modelo visual siempre es el asset Meshy compartido en `Assets/MeshyImports/Portal`.
+- El portal queda en un GameObject root llamado `ExitPortal` con un `BoxCollider` `isTrigger=true` y el componente `ExitPortal`. Nunca debe bloquear fisicamente al jugador: solo dispara `OnTriggerEnter`.
+- Cada nivel puede elegir la posicion mundial del portal (manteniendo el remate de su tension propia), pero no puede cambiar el modelo visual ni romper la regla de atravesabilidad.
 
 ## Reglas especificas para arte y set dressing
 
@@ -149,7 +159,7 @@ Checklist para un builder de nivel:
 - configurar `PrototypeLevelManager`
 - configurar enemigo
 - configurar estrellas
-- configurar portal
+- configurar portal usando `ExitPortalBuilder.BuildPortal(...)` con el modelo Meshy compartido y trigger atravesable
 - asegurar HUD
 - configurar `NavMesh`
 - guardar escena

@@ -66,19 +66,23 @@ public class EnemyBuilderTextureTests
     }
 
     [Test]
-    public void BuildEnemyRoot_EnablesEmissionKeyword()
+    public void BuildEnemyRoot_DoesNotApplyFlatEmissionTintOverTexture()
     {
+        // La legibilidad del enemigo en zonas oscuras se resuelve con las luces
+        // dedicadas (EnemyGlow y EnemyBodyGlow), no con un tinte plano de emision
+        // que lavaba los colores reales de la textura. Aqui validamos justamente
+        // que el material no inyecte un tinte naranja-marron permanente encima
+        // del albedo.
         _enemyRoot = EnemyBuilder.BuildEnemyRoot("EnemyEmissionSubject", Vector3.zero);
 
         var renderer = _enemyRoot.GetComponentInChildren<Renderer>();
         var material = renderer.sharedMaterial;
 
-        Assert.That(material.IsKeywordEnabled("_EMISSION"), Is.True,
-            "Emission must be enabled so the enemy stays readable in dark areas of every level");
-
         var emission = material.GetColor("_EmissionColor");
-        Assert.That(emission, Is.Not.EqualTo(Color.black),
-            "Emission color must be tinted so the enemy never goes pitch black");
+        Assert.That(emission, Is.EqualTo(Color.black),
+            "Material must not tint the enemy with a flat emission color, the texture colors must read clean");
+        Assert.That(material.IsKeywordEnabled("_EMISSION"), Is.False,
+            "Flat _EMISSION keyword must be disabled so the base texture is not lit on top of itself");
     }
 
     [Test]

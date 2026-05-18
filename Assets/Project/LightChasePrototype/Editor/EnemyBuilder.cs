@@ -20,14 +20,12 @@ public static class EnemyBuilder
     private const float NavMeshAgentRadius = 0.45f;
     private const float NavMeshAgentHeight = 2.2f;
 
-    // El NavMesh horneado queda algunos centimetros sobre el piso visible por la
-    // voxelizacion del bake (agentClimb 0.4 + voxelSize default). Sin compensacion,
-    // el agente snap-ea a la superficie del NavMesh y el modelo flota sobre el piso.
-    // baseOffset negativo baja al transform respecto a la posicion del agente sobre
-    // el NavMesh para que los pies del enemigo apoyen sobre el piso real. Este valor
-    // debe mantenerse alineado con EnemyLightSeeker.NavMeshAgentBaseOffset, que
-    // tambien lo aplica en runtime para enemigos ya guardados en escena.
-    private const float NavMeshAgentBaseOffset = -0.15f;
+    // baseOffset por defecto al construir un enemigo. La compensacion fina contra la
+    // voxelizacion del NavMesh y el desfase pivote-pies del FBX se hace en runtime
+    // dentro de EnemyLightSeeker.CalibrateBaseOffsetFromGround, que mide el piso real
+    // con un raycast y ajusta este valor. Lo dejamos en 0 al construir para que el
+    // builder no peleé con esa calibracion.
+    private const float NavMeshAgentBaseOffset = 0f;
 
     public static GameObject BuildEnemyRoot(string objectName, Vector3 position)
     {
@@ -442,8 +440,8 @@ public static class EnemyBuilder
         light.range = 9f;
         light.spotAngle = 70f;
         light.innerSpotAngle = 35f;
-        light.intensity = 2.4f;
-        light.color = new Color(1f, 0.78f, 0.55f);
+        light.intensity = 1.4f;
+        light.color = new Color(1f, 0.95f, 0.88f);
         light.shadows = LightShadows.Soft;
         light.shadowStrength = 0.6f;
         light.renderMode = LightRenderMode.Auto;
@@ -475,9 +473,9 @@ public static class EnemyBuilder
         }
 
         pointLight.type = LightType.Point;
-        pointLight.range = 4.5f;
-        pointLight.intensity = 1.1f;
-        pointLight.color = new Color(1f, 0.55f, 0.3f);
+        pointLight.range = 3.5f;
+        pointLight.intensity = 0.45f;
+        pointLight.color = new Color(1f, 0.92f, 0.82f);
         pointLight.shadows = LightShadows.None;
         pointLight.renderMode = LightRenderMode.Auto;
     }
@@ -553,7 +551,10 @@ public static class EnemyBuilder
         return existing;
     }
 
-    private static readonly Color BaseEmissionColor = new(0.45f, 0.18f, 0.05f);
+    // Migracion: materiales viejos quedaron pintados con un tinte naranja plano via
+    // _EmissionColor. Detectamos ese estado para forzar la reconfiguracion y limpiar
+    // el tinte sin tener que borrar los .mat a mano.
+    private static readonly Color LegacyOrangeEmissionColor = new(0.45f, 0.18f, 0.05f);
 
     private static bool NeedsTextureReconfiguration(Material material, EnemyKindAssets assets)
     {
@@ -568,20 +569,32 @@ public static class EnemyBuilder
             return true;
         }
 
-        // Migracion: materiales viejos quedaron sin _EMISSION ni roughness configurado.
-        // Forzar reconfig para ponerlos al dia sin tener que borrarlos manualmente.
-        if (!material.IsKeywordEnabled("_EMISSION"))
-        {
-            return true;
-        }
-
         var expectedRoughness = AssetDatabase.LoadAssetAtPath<Texture2D>(assets.RoughnessPath);
         if (expectedRoughness != null && material.GetTexture("_SpecGlossMap") != expectedRoughness)
         {
             return true;
         }
 
+        if (HasLegacyOrangeEmission(material))
+        {
+            return true;
+        }
+
         return false;
+    }
+
+    private static bool HasLegacyOrangeEmission(Material material)
+    {
+        if (!material.HasProperty("_EmissionColor"))
+        {
+            return false;
+        }
+
+        var current = material.GetColor("_EmissionColor");
+        const float tolerance = 0.02f;
+        return Mathf.Abs(current.r - LegacyOrangeEmissionColor.r) < tolerance
+            && Mathf.Abs(current.g - LegacyOrangeEmissionColor.g) < tolerance
+            && Mathf.Abs(current.b - LegacyOrangeEmissionColor.b) < tolerance;
     }
 
     private static void ConfigureEnemyMaterialMaps(Material material, EnemyKindAssets assets)
@@ -641,12 +654,12 @@ public static class EnemyBuilder
         material.SetFloat("_ReceiveShadows", 1f);
         material.SetFloat("_EnvironmentReflections", 1f);
 
-        // Emission tenue base: garantiza que el enemigo se lea en zonas oscuras
-        // sin depender 100% de la iluminacion de escena. EnemyLightSeeker puede
-        // intensificar este tono via MaterialPropertyBlock cuando entra en chase.
-        material.SetColor("_EmissionColor", BaseEmissionColor);
-        material.EnableKeyword("_EMISSION");
-        material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+        // Sin tinte de emision plano: lavaba los colores reales de la textura.
+        // La lectura en oscuridad se resuelve con las luces (EnemyGlow / EnemyBodyGlow)
+        // que ya intensifican durante alerta y chase.
+        material.SetColor("_EmissionColor", Color.black);
+        material.DisableKeyword("_EMISSION");
+        material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.EmissiveIsBlack;
     }
 
     private static void EnsureNormalMapTextureType(string texturePath)
