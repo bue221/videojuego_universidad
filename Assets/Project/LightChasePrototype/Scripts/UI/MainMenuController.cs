@@ -1,0 +1,1159 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+#if UNITY_EDITOR
+using UnityEditor;
+using UnityEditor.SceneManagement;
+#endif
+
+namespace LightChasePrototype.UI
+{
+    public class MainMenuController : MonoBehaviour
+    {
+        [SerializeField] private GameObject instructionsPanel;
+        [SerializeField] private string gameplaySceneName = "LightChasePrototype";
+        [SerializeField] private CanvasGroup menuCanvasGroup;
+        [SerializeField] private bool pauseGameplayWhileVisible = true;
+        [SerializeField] private GameObject mainActionsPanel;
+        [SerializeField] private GameObject avatarSelectionPanel;
+        [SerializeField] private Text avatarDescriptionText;
+        [SerializeField] private Image avatarPreviewImage;
+        [SerializeField] private Text levelDescriptionText;
+        [SerializeField] private GameObject defeatPanel;
+        [SerializeField] private Text defeatTitleText;
+        [SerializeField] private Text defeatMessageText;
+
+        private Action<string> _sceneLoader;
+        private Action _quitAction;
+        private Func<string> _activeSceneNameProvider;
+        private MonoBehaviour _starterAssetsInputs;
+        private readonly List<AvatarButtonBinding> _avatarButtons = new();
+        private readonly List<LevelButtonBinding> _levelButtons = new();
+        public event Action<bool> MenuVisibilityChanged;
+
+        public bool InstructionsVisible => instructionsPanel != null && instructionsPanel.activeSelf;
+        public string GameplaySceneName => gameplaySceneName;
+        public bool MenuVisible => menuCanvasGroup != null && menuCanvasGroup.gameObject.activeSelf;
+        public string SelectedAvatarId => PlayerAvatarSelection.SelectedAvatarId;
+        public bool AvatarSelectionVisible => avatarSelectionPanel != null && avatarSelectionPanel.activeSelf;
+        public bool DefeatVisible => defeatPanel != null && defeatPanel.activeSelf;
+        public string SelectedLevelId => ResolveSelectedLevel().Id;
+        public string SelectedLevelSceneName => ResolveSelectedLevel().SceneName;
+
+        public static MainMenuController EnsureMenuExists(string assignedGameplaySceneName = "LightChasePrototype", Transform parent = null)
+        {
+            var existingMenu = UnityEngine.Object.FindAnyObjectByType<MainMenuController>();
+            if (existingMenu != null)
+            {
+                existingMenu.EnsureUiReferences();
+                if (!existingMenu.HasRequiredMenuStructure())
+                {
+                    DestroyUnityObject(existingMenu.menuCanvasGroup != null
+                        ? existingMenu.menuCanvasGroup.gameObject
+                        : existingMenu.transform.parent != null
+                            ? existingMenu.transform.parent.gameObject
+                            : existingMenu.gameObject);
+                }
+                else
+                {
+                    existingMenu.gameplaySceneName = assignedGameplaySceneName;
+                    existingMenu.ShowMenu();
+                    return existingMenu;
+                }
+            }
+
+            EnsureEventSystemExists();
+
+            var canvasObject = new GameObject("MainMenuOverlay");
+            if (parent != null)
+            {
+                canvasObject.transform.SetParent(parent, false);
+            }
+            else
+            {
+                var canvas = canvasObject.AddComponent<Canvas>();
+                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                canvas.sortingOrder = 100;
+
+                var scaler = canvasObject.AddComponent<CanvasScaler>();
+                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                scaler.referenceResolution = new Vector2(1920f, 1080f);
+                scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+                scaler.matchWidthOrHeight = 0.5f;
+
+                canvasObject.AddComponent<GraphicRaycaster>();
+            }
+
+            var menuGroup = canvasObject.AddComponent<CanvasGroup>();
+
+            var root = CreatePanel("Root", canvasObject.transform, new Color(0.01f, 0.02f, 0.05f, 0.92f));
+            Stretch(root.GetComponent<RectTransform>());
+
+            var glow = CreatePanel("Glow", root.transform, new Color(0.18f, 0.35f, 0.6f, 0.16f));
+            SetAnchoredRect(glow.GetComponent<RectTransform>(), new Vector2(0.5f, 0.82f), new Vector2(980f, 250f));
+
+            var institutionBanner = CreatePanel("InstitutionBanner", root.transform, new Color(0.04f, 0.08f, 0.16f, 0.82f));
+            SetAnchoredRect(institutionBanner.GetComponent<RectTransform>(), new Vector2(0.5f, 0.86f), new Vector2(1040f, 150f));
+
+            CreateText("UniversityTitle", institutionBanner.transform, "UNIVERSIDAD CENTRAL", 40, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.86f, 0.94f, 1f));
+            SetAnchoredRect(institutionBanner.transform.Find("UniversityTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.7f), new Vector2(900f, 52f));
+
+            CreateText("CourseTitle", institutionBanner.transform, "MODELADO 3D Y VIDEOJUEGOS 2026", 28, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.72f, 0.86f, 1f));
+            SetAnchoredRect(institutionBanner.transform.Find("CourseTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.34f), new Vector2(940f, 44f));
+
+            CreateText("GameTitle", root.transform, "CORRE CORRE QUE TE ATRAPAN", 56, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.94f, 0.72f));
+            SetAnchoredRect(root.transform.Find("GameTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.68f), new Vector2(1180f, 88f));
+
+            CreateText("Subtitle", root.transform, "La luz te delata. Entre mas estrellas recojas, mas facil te cazan.", 22, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(0.78f, 0.86f, 0.96f));
+            SetAnchoredRect(root.transform.Find("Subtitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.6f), new Vector2(1100f, 54f));
+
+            var levelSection = CreateLevelSelectionPanel(root.transform);
+
+            var avatarSection = CreateAvatarSelectionPanel(root.transform);
+
+            var defeatSection = CreateDefeatPanel(root.transform);
+
+            var buttonStack = new GameObject("ButtonStack", typeof(RectTransform), typeof(VerticalLayoutGroup));
+            buttonStack.transform.SetParent(root.transform, false);
+            var stackRect = buttonStack.GetComponent<RectTransform>();
+            stackRect.anchorMin = new Vector2(0.5f, 0.18f);
+            stackRect.anchorMax = new Vector2(0.5f, 0.18f);
+            stackRect.sizeDelta = new Vector2(420f, 180f);
+
+            var layout = buttonStack.GetComponent<VerticalLayoutGroup>();
+            layout.childAlignment = TextAnchor.MiddleCenter;
+            layout.spacing = 18f;
+            layout.childControlHeight = false;
+            layout.childControlWidth = true;
+            layout.childForceExpandHeight = false;
+            layout.childForceExpandWidth = true;
+
+            var instructions = CreateInstructionsPanel(root.transform);
+            var controller = root.AddComponent<MainMenuController>();
+            controller.instructionsPanel = instructions;
+            controller.gameplaySceneName = assignedGameplaySceneName;
+            controller.menuCanvasGroup = menuGroup;
+            controller.mainActionsPanel = buttonStack;
+            controller.avatarSelectionPanel = avatarSection;
+            controller.avatarDescriptionText = avatarSection.transform.Find("AvatarDescription").GetComponent<Text>();
+            controller.avatarPreviewImage = avatarSection.transform.Find("AvatarPreviewFrame/AvatarPreview").GetComponent<Image>();
+            controller.levelDescriptionText = levelSection.transform.Find("LevelDescription").GetComponent<Text>();
+            controller.defeatPanel = defeatSection;
+            controller.defeatTitleText = defeatSection.transform.Find("DefeatTitle").GetComponent<Text>();
+            controller.defeatMessageText = defeatSection.transform.Find("DefeatMessage").GetComponent<Text>();
+            controller.RegisterAvatarButton(PlayerAvatarSelection.ArmatureAvatarId, avatarSection.transform.Find("AvatarButtonRow/HumanoButton").GetComponent<Button>());
+            controller.RegisterAvatarButton(PlayerAvatarSelection.CapsuleAvatarId, avatarSection.transform.Find("AvatarButtonRow/CapsulaButton").GetComponent<Button>());
+            controller.RegisterLevelButton(LightChaseLevelCatalog.PrototypeLevelId, levelSection.transform.Find("LevelButtonRow/Nivel1Button").GetComponent<Button>());
+            controller.RegisterLevelButton(LightChaseLevelCatalog.NatureLevelId, levelSection.transform.Find("LevelButtonRow/Nivel2Button").GetComponent<Button>());
+            controller.RegisterLevelButton(LightChaseLevelCatalog.WaterLevelId, levelSection.transform.Find("LevelButtonRow/Nivel3Button").GetComponent<Button>());
+            avatarSection.transform.Find("AvatarActionRow/ConfirmAvatarButton").GetComponent<Button>().onClick.AddListener(controller.StartGameFromAvatarSelection);
+            avatarSection.transform.Find("AvatarActionRow/BackAvatarButton").GetComponent<Button>().onClick.AddListener(controller.HideAvatarSelection);
+            defeatSection.transform.Find("DefeatButtonRow/RetryButton").GetComponent<Button>().onClick.AddListener(controller.RetryCurrentLevel);
+            defeatSection.transform.Find("DefeatButtonRow/MenuButton").GetComponent<Button>().onClick.AddListener(controller.ReturnToMainMenu);
+
+            instructions.transform.Find("CloseButton").GetComponent<Button>().onClick.AddListener(controller.HideInstructions);
+            CreateMenuButton(buttonStack.transform, "Jugar", new Color(0.12f, 0.45f, 0.75f), controller.PlayGame);
+            CreateMenuButton(buttonStack.transform, "Salir", new Color(0.28f, 0.16f, 0.24f), controller.QuitGame);
+
+            controller.RefreshAvatarSelectionUi();
+            controller.ShowMenu();
+            return controller;
+        }
+
+        public void Configure(GameObject assignedInstructionsPanel, string assignedGameplaySceneName)
+        {
+            instructionsPanel = assignedInstructionsPanel;
+            gameplaySceneName = assignedGameplaySceneName;
+            EnsureUiReferences();
+            HideInstructions();
+            HideAvatarSelection();
+            HideDefeat();
+            ShowMainActions();
+            RefreshAvatarSelectionUi();
+            RefreshLevelSelectionUi();
+        }
+
+        public void ConfigureActionsForTests(Action<string> sceneLoader, Action quitAction, Func<string> activeSceneNameProvider = null)
+        {
+            _sceneLoader = sceneLoader;
+            _quitAction = quitAction;
+            _activeSceneNameProvider = activeSceneNameProvider;
+        }
+
+        public void SetGameplaySceneName(string assignedGameplaySceneName)
+        {
+            if (string.IsNullOrWhiteSpace(assignedGameplaySceneName))
+            {
+                return;
+            }
+
+            gameplaySceneName = assignedGameplaySceneName;
+            RefreshLevelSelectionUi();
+        }
+
+        private void Awake()
+        {
+            EnsureUiReferences();
+            SyncSelectedLevelToActiveScene();
+            HideInstructions();
+            HideAvatarSelection();
+            HideDefeat();
+            ShowMainActions();
+            RefreshLevelSelectionUi();
+        }
+
+        private void Update()
+        {
+            if (InstructionsVisible && Input.GetKeyDown(KeyCode.Escape))
+            {
+                HideInstructions();
+            }
+        }
+
+        public void PlayGame()
+        {
+            EnsureUiReferences();
+            HideDefeat();
+
+            var selectedLevel = ResolveSelectedLevel();
+            if (GetActiveSceneName() == selectedLevel.SceneName)
+            {
+                var levelManager = UnityEngine.Object.FindAnyObjectByType<PrototypeLevelManager>();
+                if (levelManager != null && (levelManager.GameOver || levelManager.LevelCompleted))
+                {
+                    LoadLevelScene(selectedLevel.SceneName);
+                    return;
+                }
+
+                PlayerAvatarSetup.EnsureSelectedAvatarInScene();
+                HideMenu();
+                return;
+            }
+
+            if (!AvatarSelectionVisible)
+            {
+                ShowAvatarSelection();
+                return;
+            }
+
+            StartGameFromAvatarSelection();
+        }
+
+        public void ShowAvatarSelection()
+        {
+            EnsureUiReferences();
+
+            if (avatarSelectionPanel == null)
+            {
+                return;
+            }
+
+            HideInstructions();
+            HideMainActions();
+            avatarSelectionPanel.SetActive(true);
+            RefreshAvatarSelectionUi();
+        }
+
+        public void HideAvatarSelection()
+        {
+            if (avatarSelectionPanel == null)
+            {
+                ShowMainActions();
+                return;
+            }
+
+            avatarSelectionPanel.SetActive(false);
+            ShowMainActions();
+        }
+
+        public void ShowInstructions()
+        {
+            EnsureUiReferences();
+
+            if (instructionsPanel == null)
+            {
+                return;
+            }
+
+            HideAvatarSelection();
+            HideMainActions();
+            instructionsPanel.SetActive(true);
+        }
+
+        public void HideInstructions()
+        {
+            if (instructionsPanel == null)
+            {
+                ShowMainActions();
+                return;
+            }
+
+            instructionsPanel.SetActive(false);
+            ShowMainActions();
+        }
+
+        public void QuitGame()
+        {
+            if (_quitAction != null)
+            {
+                _quitAction.Invoke();
+                return;
+            }
+
+#if UNITY_EDITOR
+            EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
+        }
+
+        public void ShowMenu()
+        {
+            EnsureUiReferences();
+            HideInstructions();
+            HideAvatarSelection();
+            HideDefeat();
+            ShowMainActions();
+            RefreshAvatarSelectionUi();
+            RefreshLevelSelectionUi();
+
+            if (menuCanvasGroup != null)
+            {
+                menuCanvasGroup.gameObject.SetActive(true);
+                menuCanvasGroup.alpha = 1f;
+                menuCanvasGroup.interactable = true;
+                menuCanvasGroup.blocksRaycasts = true;
+            }
+
+            if (pauseGameplayWhileVisible)
+            {
+                Time.timeScale = 0f;
+            }
+
+            SetCursorForMenu(true);
+            MenuVisibilityChanged?.Invoke(true);
+        }
+
+        public void HideMenu()
+        {
+            HideInstructions();
+            HideAvatarSelection();
+            HideDefeat();
+            HideMainActions();
+
+            if (menuCanvasGroup != null)
+            {
+                menuCanvasGroup.alpha = 0f;
+                menuCanvasGroup.interactable = false;
+                menuCanvasGroup.blocksRaycasts = false;
+                menuCanvasGroup.gameObject.SetActive(false);
+            }
+
+            if (pauseGameplayWhileVisible)
+            {
+                Time.timeScale = 1f;
+            }
+
+            SetCursorForMenu(false);
+            MenuVisibilityChanged?.Invoke(false);
+        }
+
+        public void ShowDefeatOverlay(string title, string message)
+        {
+            EnsureUiReferences();
+            HideInstructions();
+            HideAvatarSelection();
+            HideMainActions();
+
+            if (defeatTitleText != null)
+            {
+                defeatTitleText.text = title;
+            }
+
+            if (defeatMessageText != null)
+            {
+                defeatMessageText.text = message;
+            }
+
+            if (defeatPanel != null)
+            {
+                defeatPanel.SetActive(true);
+            }
+
+            if (menuCanvasGroup != null)
+            {
+                menuCanvasGroup.gameObject.SetActive(true);
+                menuCanvasGroup.alpha = 1f;
+                menuCanvasGroup.interactable = true;
+                menuCanvasGroup.blocksRaycasts = true;
+            }
+
+            if (pauseGameplayWhileVisible)
+            {
+                Time.timeScale = 0f;
+            }
+
+            SetCursorForMenu(true);
+            MenuVisibilityChanged?.Invoke(true);
+        }
+
+        private string GetActiveSceneName()
+        {
+            return _activeSceneNameProvider != null
+                ? _activeSceneNameProvider.Invoke()
+                : SceneManager.GetActiveScene().name;
+        }
+
+        private static void EnsureEventSystemExists()
+        {
+            if (UnityEngine.Object.FindAnyObjectByType<EventSystem>() != null)
+            {
+                return;
+            }
+
+            var eventSystem = new GameObject("EventSystem");
+            eventSystem.AddComponent<EventSystem>();
+            if (!TryAddInputSystemUiModule(eventSystem))
+            {
+                eventSystem.AddComponent<StandaloneInputModule>();
+            }
+        }
+
+        private void SetCursorForMenu(bool menuVisible)
+        {
+            _starterAssetsInputs ??= FindStarterAssetsInputs();
+
+            if (_starterAssetsInputs != null)
+            {
+                SetBooleanFieldOrProperty(_starterAssetsInputs, "cursorLocked", !menuVisible);
+                SetBooleanFieldOrProperty(_starterAssetsInputs, "cursorInputForLook", !menuVisible);
+            }
+
+            Cursor.lockState = menuVisible ? CursorLockMode.None : CursorLockMode.Locked;
+            Cursor.visible = menuVisible;
+        }
+
+        private static bool TryAddInputSystemUiModule(GameObject eventSystem)
+        {
+            var inputModuleType = Type.GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule, Unity.InputSystem");
+            if (inputModuleType == null)
+            {
+                return false;
+            }
+
+            var component = eventSystem.AddComponent(inputModuleType);
+            var assignDefaultActions = inputModuleType.GetMethod("AssignDefaultActions", Type.EmptyTypes);
+            assignDefaultActions?.Invoke(component, null);
+            return true;
+        }
+
+        private static MonoBehaviour FindStarterAssetsInputs()
+        {
+            foreach (var behaviour in UnityEngine.Object.FindObjectsByType<MonoBehaviour>())
+            {
+                if (behaviour != null && behaviour.GetType().FullName == "StarterAssets.StarterAssetsInputs")
+                {
+                    return behaviour;
+                }
+            }
+
+            return null;
+        }
+
+        private static void SetBooleanFieldOrProperty(MonoBehaviour target, string memberName, bool value)
+        {
+            var targetType = target.GetType();
+            var field = targetType.GetField(memberName);
+            if (field != null && field.FieldType == typeof(bool))
+            {
+                field.SetValue(target, value);
+                return;
+            }
+
+            var property = targetType.GetProperty(memberName);
+            if (property != null && property.CanWrite && property.PropertyType == typeof(bool))
+            {
+                property.SetValue(target, value);
+            }
+        }
+
+        public void SelectAvatar(string avatarId)
+        {
+            PlayerAvatarSelection.SelectAvatar(avatarId);
+            RefreshAvatarSelectionUi();
+        }
+
+        public void SelectLevel(string levelId)
+        {
+            LightChaseLevelCatalog.SelectLevel(levelId);
+            RefreshLevelSelectionUi();
+        }
+
+        private void StartGameFromAvatarSelection()
+        {
+            HideDefeat();
+            LoadLevelScene(ResolveSelectedLevel().SceneName);
+        }
+
+        private void LoadLevelScene(string sceneName)
+        {
+            var selectedLevel = LightChaseLevelCatalog.GetLevelBySceneName(sceneName);
+
+            if (_sceneLoader != null)
+            {
+                _sceneLoader.Invoke(selectedLevel.SceneName);
+                return;
+            }
+
+#if UNITY_EDITOR
+            var scenePath = LightChaseLevelCatalog.GetScenePath(selectedLevel.SceneName);
+            EnsureSelectedLevelSceneExists(selectedLevel, scenePath);
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath) != null)
+            {
+                EditorSceneManager.LoadSceneInPlayMode(scenePath, new LoadSceneParameters(LoadSceneMode.Single));
+                return;
+            }
+#endif
+
+            SceneManager.LoadScene(selectedLevel.SceneName);
+        }
+
+#if UNITY_EDITOR
+        private static void EnsureSelectedLevelSceneExists(LightChaseLevelCatalog.LevelOption selectedLevel, string scenePath)
+        {
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath) != null)
+            {
+                return;
+            }
+
+            var menuItemPath = selectedLevel.Id switch
+            {
+                LightChaseLevelCatalog.PrototypeLevelId => "Tools/Prototype/Build Light Chase Level",
+                LightChaseLevelCatalog.NatureLevelId => "Tools/Prototype/Build Light Chase Level 02",
+                LightChaseLevelCatalog.WaterLevelId => "Tools/Prototype/Build Light Chase Level 03",
+                _ => null
+            };
+
+            if (string.IsNullOrWhiteSpace(menuItemPath))
+            {
+                Debug.LogWarning($"No hay builder registrado para la escena faltante {selectedLevel.SceneName}.");
+                return;
+            }
+
+            if (!EditorApplication.ExecuteMenuItem(menuItemPath))
+            {
+                Debug.LogError($"No se pudo ejecutar el builder '{menuItemPath}' para crear {selectedLevel.SceneName}.");
+                return;
+            }
+
+            AssetDatabase.Refresh();
+
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath) != null)
+            {
+                return;
+            }
+
+            Debug.LogError($"El builder se ejecuto pero la escena {selectedLevel.SceneName} sigue sin existir en {scenePath}.");
+        }
+#endif
+
+        private void ShowMainActions()
+        {
+            SetMainActionsVisible(true);
+        }
+
+        private void HideMainActions()
+        {
+            SetMainActionsVisible(false);
+        }
+
+        private void SetMainActionsVisible(bool visible)
+        {
+            if (mainActionsPanel == null)
+            {
+                return;
+            }
+
+            mainActionsPanel.SetActive(visible);
+        }
+
+        private void HideDefeat()
+        {
+            if (defeatPanel != null)
+            {
+                defeatPanel.SetActive(false);
+            }
+        }
+
+        private void RetryCurrentLevel()
+        {
+            SyncSelectedLevelToActiveScene();
+            HideDefeat();
+            LoadLevelScene(ResolveSelectedLevel().SceneName);
+        }
+
+        private void ReturnToMainMenu()
+        {
+            ShowMenu();
+        }
+
+        private void OnDestroy()
+        {
+            DestroyAvatarPreviewSprite();
+        }
+
+        private void EnsureUiReferences()
+        {
+            if (menuCanvasGroup == null)
+            {
+                menuCanvasGroup = GetComponentInParent<CanvasGroup>();
+            }
+
+            if (mainActionsPanel == null)
+            {
+                mainActionsPanel = transform.Find("ButtonStack")?.gameObject;
+            }
+
+            if (avatarSelectionPanel == null)
+            {
+                avatarSelectionPanel = transform.Find("AvatarSelectionPanel")?.gameObject;
+            }
+
+            if (instructionsPanel == null)
+            {
+                instructionsPanel = transform.Find("InstructionsPanel")?.gameObject;
+            }
+
+            if (avatarDescriptionText == null)
+            {
+                avatarDescriptionText = avatarSelectionPanel?.transform.Find("AvatarDescription")?.GetComponent<Text>();
+            }
+
+            if (avatarPreviewImage == null)
+            {
+                avatarPreviewImage = avatarSelectionPanel?.transform.Find("AvatarPreviewFrame/AvatarPreview")?.GetComponent<Image>();
+            }
+
+            if (levelDescriptionText == null)
+            {
+                levelDescriptionText = transform.Find("LevelSelectionPanel/LevelDescription")?.GetComponent<Text>();
+            }
+
+            if (defeatPanel == null)
+            {
+                defeatPanel = transform.Find("DefeatPanel")?.gameObject;
+            }
+
+            if (defeatTitleText == null)
+            {
+                defeatTitleText = defeatPanel?.transform.Find("DefeatTitle")?.GetComponent<Text>();
+            }
+
+            if (defeatMessageText == null)
+            {
+                defeatMessageText = defeatPanel?.transform.Find("DefeatMessage")?.GetComponent<Text>();
+            }
+        }
+
+        private bool HasRequiredMenuStructure()
+        {
+            return mainActionsPanel != null
+                && avatarSelectionPanel != null
+                && avatarSelectionPanel.transform.Find("AvatarButtonRow/HumanoButton") != null
+                && avatarSelectionPanel.transform.Find("AvatarButtonRow/CapsulaButton") != null
+                && avatarSelectionPanel.transform.Find("AvatarActionRow/ConfirmAvatarButton") != null
+                && avatarSelectionPanel.transform.Find("AvatarActionRow/BackAvatarButton") != null
+                && avatarSelectionPanel.transform.Find("AvatarPreviewFrame/AvatarPreview") != null
+                && transform.Find("LevelSelectionPanel/LevelButtonRow/Nivel1Button") != null
+                && transform.Find("LevelSelectionPanel/LevelButtonRow/Nivel2Button") != null
+                && transform.Find("LevelSelectionPanel/LevelButtonRow/Nivel3Button") != null
+                && instructionsPanel != null;
+        }
+
+        private void RegisterAvatarButton(string avatarId, Button button)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            button.onClick.AddListener(() => SelectAvatar(avatarId));
+            _avatarButtons.Add(new AvatarButtonBinding(avatarId, button));
+        }
+
+        private void RegisterLevelButton(string levelId, Button button)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            button.onClick.AddListener(() => SelectLevel(levelId));
+            _levelButtons.Add(new LevelButtonBinding(levelId, button));
+        }
+
+        private void RefreshAvatarSelectionUi()
+        {
+            var selectedAvatar = PlayerAvatarSelection.SelectedAvatar;
+
+            if (avatarDescriptionText != null)
+            {
+                avatarDescriptionText.text = $"{selectedAvatar.DisplayName}: {selectedAvatar.Description}";
+            }
+
+            if (avatarPreviewImage != null && (avatarSelectionPanel == null || avatarSelectionPanel.activeSelf))
+            {
+                DestroyAvatarPreviewSprite();
+                avatarPreviewImage.sprite = PlayerAvatarSelection.BuildAvatarPreviewSprite(selectedAvatar.Id);
+                avatarPreviewImage.preserveAspect = true;
+                avatarPreviewImage.enabled = avatarPreviewImage.sprite != null;
+            }
+
+            foreach (var binding in _avatarButtons)
+            {
+                if (binding.Button == null)
+                {
+                    continue;
+                }
+
+                var colors = binding.Button.colors;
+                var isSelected = binding.AvatarId == selectedAvatar.Id;
+                var baseColor = isSelected
+                    ? new Color(0.82f, 0.64f, 0.2f, 1f)
+                    : new Color(0.16f, 0.24f, 0.38f, 1f);
+
+                colors.normalColor = baseColor;
+                colors.highlightedColor = baseColor * 1.1f;
+                colors.pressedColor = baseColor * 0.9f;
+                colors.selectedColor = baseColor * 1.05f;
+                colors.disabledColor = new Color(0.24f, 0.24f, 0.24f, 0.75f);
+                binding.Button.colors = colors;
+
+                var image = binding.Button.GetComponent<Image>();
+                if (image != null)
+                {
+                    image.color = baseColor;
+                }
+
+                var label = binding.Button.transform.Find("Label")?.GetComponent<Text>();
+                if (label != null)
+                {
+                    label.text = isSelected
+                        ? $"{PlayerAvatarSelection.GetAvatar(binding.AvatarId).DisplayName.ToUpperInvariant()}  ACTIVO"
+                        : PlayerAvatarSelection.GetAvatar(binding.AvatarId).DisplayName.ToUpperInvariant();
+                }
+            }
+        }
+
+        private void RefreshLevelSelectionUi()
+        {
+            var selectedLevel = ResolveSelectedLevel();
+
+            if (levelDescriptionText != null)
+            {
+                levelDescriptionText.text = $"{selectedLevel.DisplayName}: {selectedLevel.Description}";
+            }
+
+            foreach (var binding in _levelButtons)
+            {
+                if (binding.Button == null)
+                {
+                    continue;
+                }
+
+                var colors = binding.Button.colors;
+                var isSelected = binding.LevelId == selectedLevel.Id;
+                var baseColor = isSelected
+                    ? new Color(0.76f, 0.56f, 0.18f, 1f)
+                    : new Color(0.1f, 0.2f, 0.32f, 1f);
+
+                colors.normalColor = baseColor;
+                colors.highlightedColor = baseColor * 1.1f;
+                colors.pressedColor = baseColor * 0.9f;
+                colors.selectedColor = baseColor * 1.05f;
+                colors.disabledColor = new Color(0.24f, 0.24f, 0.24f, 0.75f);
+                binding.Button.colors = colors;
+
+                var image = binding.Button.GetComponent<Image>();
+                if (image != null)
+                {
+                    image.color = baseColor;
+                }
+
+                var label = binding.Button.transform.Find("Label")?.GetComponent<Text>();
+                if (label != null)
+                {
+                    label.text = isSelected
+                        ? $"{LightChaseLevelCatalog.GetLevel(binding.LevelId).DisplayName.ToUpperInvariant()}  ACTIVO"
+                        : LightChaseLevelCatalog.GetLevel(binding.LevelId).DisplayName.ToUpperInvariant();
+                }
+            }
+        }
+
+        private LightChaseLevelCatalog.LevelOption ResolveSelectedLevel()
+        {
+            var selectedLevel = LightChaseLevelCatalog.SelectedLevel;
+            if (!string.IsNullOrWhiteSpace(selectedLevel.SceneName))
+            {
+                return selectedLevel;
+            }
+
+            return LightChaseLevelCatalog.GetLevelBySceneName(gameplaySceneName);
+        }
+
+        private void SyncSelectedLevelToActiveScene()
+        {
+            var activeSceneName = GetActiveSceneName();
+            if (!LightChaseLevelCatalog.IsKnownSceneName(activeSceneName))
+            {
+                return;
+            }
+
+            LightChaseLevelCatalog.SelectLevel(LightChaseLevelCatalog.GetLevelBySceneName(activeSceneName).Id);
+        }
+
+        private void DestroyAvatarPreviewSprite()
+        {
+            if (avatarPreviewImage?.sprite == null)
+            {
+                return;
+            }
+
+            var previousSprite = avatarPreviewImage.sprite;
+            var previousTexture = previousSprite.texture;
+            avatarPreviewImage.sprite = null;
+
+            if (previousSprite != null)
+            {
+                DestroyUnityObject(previousSprite);
+            }
+
+            if (previousTexture != null)
+            {
+                DestroyUnityObject(previousTexture);
+            }
+        }
+
+        private static void DestroyUnityObject(UnityEngine.Object unityObject)
+        {
+            if (unityObject == null)
+            {
+                return;
+            }
+
+            if (Application.isPlaying)
+            {
+                Destroy(unityObject);
+                return;
+            }
+
+            DestroyImmediate(unityObject);
+        }
+
+        private static GameObject CreateAvatarSelectionPanel(Transform parent)
+        {
+            var panel = CreatePanel("AvatarSelectionPanel", parent, new Color(0.03f, 0.06f, 0.12f, 0.8f));
+            SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.36f), new Vector2(1040f, 420f));
+
+            CreateText("AvatarTitle", panel.transform, "ELIGE TU AVATAR", 28, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.95f, 0.96f, 1f));
+            var titleRect = panel.transform.Find("AvatarTitle").GetComponent<RectTransform>();
+            titleRect.anchorMin = new Vector2(0.5f, 0.88f);
+            titleRect.anchorMax = new Vector2(0.5f, 0.88f);
+            titleRect.sizeDelta = new Vector2(520f, 40f);
+            titleRect.anchoredPosition = Vector2.zero;
+
+            var previewFrame = CreatePanel("AvatarPreviewFrame", panel.transform, new Color(0.06f, 0.1f, 0.18f, 0.92f));
+            SetAnchoredRect(previewFrame.GetComponent<RectTransform>(), new Vector2(0.24f, 0.5f), new Vector2(250f, 250f));
+
+            var previewImageObject = new GameObject("AvatarPreview", typeof(RectTransform), typeof(Image));
+            previewImageObject.transform.SetParent(previewFrame.transform, false);
+            var previewImageRect = previewImageObject.GetComponent<RectTransform>();
+            previewImageRect.anchorMin = new Vector2(0.08f, 0.08f);
+            previewImageRect.anchorMax = new Vector2(0.92f, 0.92f);
+            previewImageRect.offsetMin = Vector2.zero;
+            previewImageRect.offsetMax = Vector2.zero;
+            var previewImage = previewImageObject.GetComponent<Image>();
+            previewImage.color = Color.white;
+            previewImage.preserveAspect = true;
+
+            var buttonRow = new GameObject("AvatarButtonRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            buttonRow.transform.SetParent(panel.transform, false);
+            var rowRect = buttonRow.GetComponent<RectTransform>();
+            rowRect.anchorMin = new Vector2(0.66f, 0.62f);
+            rowRect.anchorMax = new Vector2(0.66f, 0.62f);
+            rowRect.sizeDelta = new Vector2(500f, 72f);
+            rowRect.anchoredPosition = Vector2.zero;
+
+            var rowLayout = buttonRow.GetComponent<HorizontalLayoutGroup>();
+            rowLayout.childAlignment = TextAnchor.MiddleCenter;
+            rowLayout.spacing = 20f;
+            rowLayout.childControlWidth = false;
+            rowLayout.childControlHeight = false;
+            rowLayout.childForceExpandWidth = false;
+            rowLayout.childForceExpandHeight = false;
+
+            var humanoButton = CreateMenuButton(buttonRow.transform, "Humano", new Color(0.16f, 0.24f, 0.38f), null);
+            humanoButton.name = "HumanoButton";
+            humanoButton.GetComponent<RectTransform>().sizeDelta = new Vector2(220f, 68f);
+
+            var capsulaButton = CreateMenuButton(buttonRow.transform, "Capsula", new Color(0.16f, 0.24f, 0.38f), null);
+            capsulaButton.name = "CapsulaButton";
+            capsulaButton.GetComponent<RectTransform>().sizeDelta = new Vector2(220f, 68f);
+
+            CreateText("AvatarDescription", panel.transform, string.Empty, 20, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(0.8f, 0.88f, 0.97f));
+            var descriptionRect = panel.transform.Find("AvatarDescription").GetComponent<RectTransform>();
+            descriptionRect.anchorMin = new Vector2(0.66f, 0.38f);
+            descriptionRect.anchorMax = new Vector2(0.66f, 0.38f);
+            descriptionRect.sizeDelta = new Vector2(520f, 86f);
+            descriptionRect.anchoredPosition = Vector2.zero;
+
+            var actionRow = new GameObject("AvatarActionRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            actionRow.transform.SetParent(panel.transform, false);
+            var actionRect = actionRow.GetComponent<RectTransform>();
+            actionRect.anchorMin = new Vector2(0.66f, 0.16f);
+            actionRect.anchorMax = new Vector2(0.66f, 0.16f);
+            actionRect.sizeDelta = new Vector2(500f, 68f);
+
+            var actionLayout = actionRow.GetComponent<HorizontalLayoutGroup>();
+            actionLayout.childAlignment = TextAnchor.MiddleCenter;
+            actionLayout.spacing = 18f;
+            actionLayout.childControlWidth = false;
+            actionLayout.childControlHeight = false;
+            actionLayout.childForceExpandWidth = false;
+            actionLayout.childForceExpandHeight = false;
+
+            var confirmButton = CreateMenuButton(actionRow.transform, "Comenzar", new Color(0.12f, 0.45f, 0.75f), null);
+            confirmButton.name = "ConfirmAvatarButton";
+            confirmButton.GetComponent<RectTransform>().sizeDelta = new Vector2(240f, 64f);
+
+            var backButton = CreateMenuButton(actionRow.transform, "Volver", new Color(0.2f, 0.24f, 0.3f), null);
+            backButton.name = "BackAvatarButton";
+            backButton.GetComponent<RectTransform>().sizeDelta = new Vector2(180f, 64f);
+
+            panel.SetActive(false);
+
+            return panel;
+        }
+
+        private static GameObject CreateLevelSelectionPanel(Transform parent)
+        {
+            var panel = CreatePanel("LevelSelectionPanel", parent, new Color(0.03f, 0.06f, 0.12f, 0.78f));
+            SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.42f), new Vector2(1060f, 178f));
+
+            CreateText("LevelTitle", panel.transform, "ELIGE LA RUTA", 26, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.94f, 0.96f, 1f));
+            SetAnchoredRect(panel.transform.Find("LevelTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.8f), new Vector2(420f, 36f));
+
+            var levelButtonRow = new GameObject("LevelButtonRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            levelButtonRow.transform.SetParent(panel.transform, false);
+            var rowRect = levelButtonRow.GetComponent<RectTransform>();
+            rowRect.anchorMin = new Vector2(0.5f, 0.5f);
+            rowRect.anchorMax = new Vector2(0.5f, 0.5f);
+            rowRect.sizeDelta = new Vector2(960f, 64f);
+
+            var rowLayout = levelButtonRow.GetComponent<HorizontalLayoutGroup>();
+            rowLayout.childAlignment = TextAnchor.MiddleCenter;
+            rowLayout.spacing = 16f;
+            rowLayout.childControlWidth = false;
+            rowLayout.childControlHeight = false;
+            rowLayout.childForceExpandWidth = false;
+            rowLayout.childForceExpandHeight = false;
+
+            var nivel1Button = CreateMenuButton(levelButtonRow.transform, "Nivel 1", new Color(0.1f, 0.2f, 0.32f), null);
+            nivel1Button.name = "Nivel1Button";
+            nivel1Button.GetComponent<RectTransform>().sizeDelta = new Vector2(280f, 62f);
+
+            var nivel2Button = CreateMenuButton(levelButtonRow.transform, "Nivel 2", new Color(0.1f, 0.2f, 0.32f), null);
+            nivel2Button.name = "Nivel2Button";
+            nivel2Button.GetComponent<RectTransform>().sizeDelta = new Vector2(280f, 62f);
+
+            var nivel3Button = CreateMenuButton(levelButtonRow.transform, "Nivel 3", new Color(0.1f, 0.2f, 0.32f), null);
+            nivel3Button.name = "Nivel3Button";
+            nivel3Button.GetComponent<RectTransform>().sizeDelta = new Vector2(280f, 62f);
+
+            CreateText("LevelDescription", panel.transform, string.Empty, 18, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(0.8f, 0.88f, 0.97f));
+            SetAnchoredRect(panel.transform.Find("LevelDescription").GetComponent<RectTransform>(), new Vector2(0.5f, 0.18f), new Vector2(920f, 40f));
+
+            return panel;
+        }
+
+        private static GameObject CreateDefeatPanel(Transform parent)
+        {
+            var panel = CreatePanel("DefeatPanel", parent, new Color(0.02f, 0.04f, 0.08f, 0.94f));
+            SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.33f), new Vector2(920f, 320f));
+
+            CreateText("DefeatTitle", panel.transform, "PARTIDA TERMINADA", 34, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.92f, 0.78f));
+            SetAnchoredRect(panel.transform.Find("DefeatTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.78f), new Vector2(620f, 54f));
+
+            CreateText("DefeatMessage", panel.transform, string.Empty, 22, FontStyle.Normal, TextAnchor.MiddleCenter, new Color(0.84f, 0.9f, 1f));
+            SetAnchoredRect(panel.transform.Find("DefeatMessage").GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(760f, 92f));
+
+            var buttonRow = new GameObject("DefeatButtonRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            buttonRow.transform.SetParent(panel.transform, false);
+            var rowRect = buttonRow.GetComponent<RectTransform>();
+            rowRect.anchorMin = new Vector2(0.5f, 0.2f);
+            rowRect.anchorMax = new Vector2(0.5f, 0.2f);
+            rowRect.sizeDelta = new Vector2(560f, 68f);
+
+            var rowLayout = buttonRow.GetComponent<HorizontalLayoutGroup>();
+            rowLayout.childAlignment = TextAnchor.MiddleCenter;
+            rowLayout.spacing = 20f;
+            rowLayout.childControlWidth = false;
+            rowLayout.childControlHeight = false;
+            rowLayout.childForceExpandWidth = false;
+            rowLayout.childForceExpandHeight = false;
+
+            var retryButton = CreateMenuButton(buttonRow.transform, "Reintentar", new Color(0.12f, 0.45f, 0.75f), null);
+            retryButton.name = "RetryButton";
+            retryButton.GetComponent<RectTransform>().sizeDelta = new Vector2(240f, 64f);
+
+            var menuButton = CreateMenuButton(buttonRow.transform, "Salir al menu principal", new Color(0.2f, 0.24f, 0.3f), null);
+            menuButton.name = "MenuButton";
+            menuButton.GetComponent<RectTransform>().sizeDelta = new Vector2(280f, 64f);
+
+            panel.SetActive(false);
+            return panel;
+        }
+
+        private static GameObject CreateInstructionsPanel(Transform parent)
+        {
+            var panel = CreatePanel("InstructionsPanel", parent, new Color(0.01f, 0.02f, 0.05f, 0.96f));
+            SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(1140f, 680f));
+
+            CreateText("InstructionsTitle", panel.transform, "COMO JUGAR", 38, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.95f, 0.72f));
+            SetAnchoredRect(panel.transform.Find("InstructionsTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.86f), new Vector2(600f, 60f));
+
+            CreateText(
+                "InstructionsBody",
+                panel.transform,
+                "OBJETIVO\n" +
+                "Recoge 5 de las 7 estrellas para activar el portal de salida y escapar.\n\n" +
+                "CONTROLES\n" +
+                "WASD  Moverte por el nivel\n" +
+                "Mouse  Girar la camara\n" +
+                "Shift izquierdo  Correr\n" +
+                "Espacio  Saltar\n\n" +
+                "COMO FUNCIONA EL RIESGO\n" +
+                "Cada estrella aumenta tu brillo, hace mas visible tu rastro y permite que el enemigo te detecte desde mas lejos.\n" +
+                "Recoger rapido te acerca a la meta, pero tambien te expone mas.\n\n" +
+                "QUE HACE EL ENEMIGO\n" +
+                "El perseguidor reacciona a tu firma de luz. Si estas muy brillante, te encuentra antes, acelera durante la persecucion y te quita vidas al alcanzarte.\n" +
+                "Si oyes o ves que entra en alerta, cambia de ruta o corre al portal si ya esta activo.\n\n" +
+                "CONDICIONES DE PARTIDA\n" +
+                "Tienes 3 vidas y 180 segundos. Si te quedas sin tiempo o sin vidas, pierdes la partida.",
+                22,
+                FontStyle.Normal,
+                TextAnchor.UpperLeft,
+                new Color(0.82f, 0.9f, 1f));
+
+            var bodyRect = panel.transform.Find("InstructionsBody").GetComponent<RectTransform>();
+            bodyRect.anchorMin = new Vector2(0.5f, 0.5f);
+            bodyRect.anchorMax = new Vector2(0.5f, 0.5f);
+            bodyRect.sizeDelta = new Vector2(920f, 420f);
+            bodyRect.anchoredPosition = new Vector2(0f, -10f);
+
+            var closeButton = CreateMenuButton(panel.transform, "Cerrar", new Color(0.16f, 0.33f, 0.5f), null);
+            closeButton.name = "CloseButton";
+            SetAnchoredRect(closeButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.11f), new Vector2(280f, 64f));
+            panel.SetActive(false);
+            return panel;
+        }
+
+        private static GameObject CreateMenuButton(Transform parent, string label, Color color, UnityEngine.Events.UnityAction onClick)
+        {
+            var buttonObject = new GameObject(label + "Button", typeof(RectTransform), typeof(Image), typeof(Button));
+            buttonObject.transform.SetParent(parent, false);
+
+            var rectTransform = buttonObject.GetComponent<RectTransform>();
+            rectTransform.sizeDelta = new Vector2(420f, 68f);
+
+            var image = buttonObject.GetComponent<Image>();
+            image.color = color;
+
+            var button = buttonObject.GetComponent<Button>();
+            var colors = button.colors;
+            colors.normalColor = color;
+            colors.highlightedColor = color * 1.15f;
+            colors.pressedColor = color * 0.9f;
+            colors.selectedColor = color * 1.1f;
+            colors.disabledColor = new Color(0.3f, 0.3f, 0.3f, 0.8f);
+            button.colors = colors;
+
+            if (onClick != null)
+            {
+                button.onClick.AddListener(onClick);
+            }
+
+            CreateText("Label", buttonObject.transform, label.ToUpperInvariant(), 28, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+            Stretch(buttonObject.transform.Find("Label").GetComponent<RectTransform>());
+            return buttonObject;
+        }
+
+        private static GameObject CreatePanel(string name, Transform parent, Color color)
+        {
+            var panel = new GameObject(name, typeof(RectTransform), typeof(Image));
+            panel.transform.SetParent(parent, false);
+            panel.GetComponent<Image>().color = color;
+            return panel;
+        }
+
+        private static void CreateText(string name, Transform parent, string content, int fontSize, FontStyle fontStyle, TextAnchor alignment, Color color)
+        {
+            var textObject = new GameObject(name, typeof(RectTransform), typeof(Text));
+            textObject.transform.SetParent(parent, false);
+
+            var text = textObject.GetComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.text = content;
+            text.fontSize = fontSize;
+            text.fontStyle = fontStyle;
+            text.alignment = alignment;
+            text.color = color;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+        }
+
+        private static void Stretch(RectTransform rectTransform)
+        {
+            rectTransform.anchorMin = Vector2.zero;
+            rectTransform.anchorMax = Vector2.one;
+            rectTransform.offsetMin = Vector2.zero;
+            rectTransform.offsetMax = Vector2.zero;
+        }
+
+        private static void SetAnchoredRect(RectTransform rectTransform, Vector2 anchor, Vector2 size)
+        {
+            rectTransform.anchorMin = anchor;
+            rectTransform.anchorMax = anchor;
+            rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            rectTransform.sizeDelta = size;
+            rectTransform.anchoredPosition = Vector2.zero;
+        }
+
+        private readonly struct AvatarButtonBinding
+        {
+            public AvatarButtonBinding(string avatarId, Button button)
+            {
+                AvatarId = avatarId;
+                Button = button;
+            }
+
+            public string AvatarId { get; }
+            public Button Button { get; }
+        }
+
+        private readonly struct LevelButtonBinding
+        {
+            public LevelButtonBinding(string levelId, Button button)
+            {
+                LevelId = levelId;
+                Button = button;
+            }
+
+            public string LevelId { get; }
+            public Button Button { get; }
+        }
+    }
+}

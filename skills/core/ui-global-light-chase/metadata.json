@@ -1,0 +1,19 @@
+{
+  "name": "ui-global-light-chase",
+  "version": "1.0.0",
+  "description": "Canon obligatorio de layout y jerarquia visual para HUD, menu principal y UI global de Light Chase Prototype.",
+  "language": "es",
+  "owner": "project",
+  "triggers": [
+    "ui global",
+    "hud",
+    "menu principal",
+    "layout ui",
+    "score",
+    "vidas",
+    "tiempo",
+    "mensaje de estado",
+    "universidad central",
+    "modelado 3d y videojuegos 2026"
+  ]
+}

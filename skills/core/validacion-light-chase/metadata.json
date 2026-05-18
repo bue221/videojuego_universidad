@@ -1,0 +1,21 @@
+{
+  "name": "validacion-light-chase",
+  "version": "1.0.0",
+  "description": "Checklist obligatorio de validacion para gameplay, UI, derrota, menu, builders y niveles de Light Chase Prototype.",
+  "language": "es",
+  "owner": "project",
+  "triggers": [
+    "validar gameplay",
+    "validacion light chase",
+    "probar nivel",
+    "verificar hud",
+    "verificar portal",
+    "verificar derrota",
+    "reintentar",
+    "menu principal",
+    "play mode",
+    "test runner",
+    "builder",
+    "scene validation"
+  ]
+}

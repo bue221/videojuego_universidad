@@ -1,0 +1,18 @@
+{
+  "name": "crear-niveles-light-chase",
+  "version": "1.0.0",
+  "description": "Guia en espanol para crear niveles consistentes en Light Chase Prototype sin romper el loop de riesgo, luz y persecucion.",
+  "language": "es",
+  "owner": "project",
+  "triggers": [
+    "crear nivel",
+    "nuevo nivel",
+    "level builder",
+    "nivel 2",
+    "nivel 3",
+    "disenar nivel",
+    "low-poly simple nature pack",
+    "hud del nivel",
+    "canvas de vidas score tiempo"
+  ]
+}

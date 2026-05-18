@@ -1,0 +1,16 @@
+{
+  "name": "cierre-documental-light-chase",
+  "version": "1.0.0",
+  "description": "Workflow de cierre para detectar reglas o features reutilizables y preguntar si deben documentarse en skills o documentos del proyecto.",
+  "language": "es",
+  "owner": "project",
+  "triggers": [
+    "documentar regla",
+    "nueva skill",
+    "guardar decision",
+    "actualizar agents",
+    "documentacion viva",
+    "nuevo canon",
+    "nueva regla reutilizable"
+  ]
+}

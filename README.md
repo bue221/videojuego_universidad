@@ -11,8 +11,10 @@ Recolectar estrellas te acerca a la salida, pero también aumenta tu brillo, dej
 - Input: `Unity Input System`
 - Navegación enemiga: `Unity AI Navigation` con `NavMeshAgent`
 - Base del personaje: `Starter Assets Third Person Controller`
-- Escena versionada actual: `Assets/Scenes/LightChasePrototype.unity`
-- Escena opcional generable por builder: `Assets/Scenes/MainMenu.unity`
+- Escena versionada actual: `Assets/Project/LightChasePrototype/Scenes/LightChasePrototype.unity`
+- Segundo nivel generable por builder: `Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level02.unity`
+- Tercer nivel generable por builder: `Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level03.unity`
+- Escena opcional generable por builder: `Assets/Project/LightChasePrototype/Scenes/MainMenu.unity`
 
 ## Fantasía del prototipo
 
@@ -91,14 +93,14 @@ La firma de luz actual crece con esta fórmula:
 1. Abre Unity Hub.
 2. Usa la versión `6000.4.3f1`.
 3. Agrega esta carpeta como proyecto.
-4. Abre la escena `Assets/Scenes/LightChasePrototype.unity`.
+4. Abre la escena `Assets/Project/LightChasePrototype/Scenes/LightChasePrototype.unity`.
 
 ## Cómo correrlo
 
-1. Abre `Assets/Scenes/LightChasePrototype.unity`.
+1. Abre `Assets/Project/LightChasePrototype/Scenes/LightChasePrototype.unity`.
 2. Presiona `Play` en Unity.
 3. El proyecto asegura el overlay de menú principal también desde runtime, así que puedes elegir avatar y pulsar `Jugar` sin salir de la escena jugable.
-4. Si prefieres una escena dedicada de menú, primero genera `Assets/Scenes/MainMenu.unity` con `Tools > Prototype > Build Main Menu`.
+4. Si prefieres una escena dedicada de menú, primero genera `Assets/Project/LightChasePrototype/Scenes/MainMenu.unity` con `Tools > Prototype > Build Main Menu`.
 5. Al comenzar la partida, el mouse queda tomado por el controlador third-person, así que la cámara se maneja directamente con movimiento del mouse.
 
 ## Controles del jugador
@@ -133,7 +135,7 @@ La intención del loop es que el enemigo convierta el progreso en presión, no q
 
 El proyecto incluye un builder para regenerar la escena y sus piezas base:
 
-- Archivo: `Assets/Editor/LightChasePrototypeBuilder.cs`
+- Archivo: `Assets/Project/LightChasePrototype/Editor/LightChasePrototypeBuilder.cs`
 - Menú de Unity: `Tools > Prototype > Build Light Chase Level`
 - Menú auxiliar de atmósfera: `Tools > Prototype > Apply Suspense Atmosphere`
 
@@ -151,11 +153,47 @@ Ese builder:
 
 Si vas a cambiar layout, actores o tuning base del prototipo, revisa primero el builder para no dejar la escena y la automatización desalineadas.
 
+## Cómo generar el segundo nivel low poly
+
+El segundo nivel se genera desde un builder dedicado que usa prefabs de `Low-Poly Simple Nature Pack` para armar un bosque oscuro con rutas más cerradas:
+
+- Archivo: `Assets/Project/LightChasePrototype/Editor/LightChaseNatureLevelBuilder.cs`
+- Menú de Unity: `Tools > Prototype > Build Light Chase Level 02`
+- Escena generada: `Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level02.unity`
+
+Ese builder:
+
+- reutiliza la atmósfera nocturna del prototipo
+- instancia `Ground`, `Tree`, `Rock`, `Bush`, `Grass`, `Flowers` y `Mushroom` desde `Assets/ThirdParty/SimpleNaturePack/Prefabs`
+- oscurece el palette de los materiales para lectura nocturna
+- coloca `8` estrellas y exige `6` para abrir el portal
+- arranca con una entrada relativamente segura, aprieta el tramo medio con un shortcut más expuesto y remata con un cierre abierto cerca del portal
+- ubica al enemigo en la franja media para que la presión suba cuando el jugador ya ganó brillo y entró al corazón del bosque
+
+El menú principal ahora permite elegir `Nivel 1` o `Nivel 2` antes de pasar a la selección de avatar.
+
+## Cómo generar el tercer nivel con escenario_3
+
+El tercer nivel se genera desde un builder dedicado que toma `Assets/Project/LightChasePrototype/Resources/ModelosEscenarios/escenario_3.glb` como entorno base y lo convierte en una ruta jugable con agua:
+
+- Archivo: `Assets/Project/LightChasePrototype/Editor/LightChaseWaterLevelBuilder.cs`
+- Menú de Unity: `Tools > Prototype > Build Light Chase Level 03`
+- Escena generada: `Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level03.unity`
+
+Ese builder:
+
+- importa `escenario_3.glb` como escenario principal
+- escala el entorno para dejarlo en una huella jugable similar al resto del prototipo
+- agrega colliders al modelo para movimiento del jugador y `NavMesh`
+- crea zonas de agua que frenan al jugador, bajan su salto y hunden parcialmente el avatar mientras cruza
+- mantiene el loop central con estrellas, perseguidor, HUD, portal, tiempo y vidas
+- distribuye una ruta más expuesta alrededor de pasos inundados para que el agua aumente la presión sin reemplazar la fantasía de luz y persecución
+
 ## Cómo reconstruir el menú principal
 
 El proyecto también incluye un builder para el menú:
 
-- Archivo: `Assets/Editor/LightChaseMainMenuBuilder.cs`
+- Archivo: `Assets/Project/LightChasePrototype/Editor/LightChaseMainMenuBuilder.cs`
 - Menú de Unity: `Tools > Prototype > Build Main Menu`
 
 Ese builder crea una escena de menú con:
@@ -170,20 +208,21 @@ Ese builder crea una escena de menú con:
 
 ### Gameplay
 
-- `Assets/Scripts/Gameplay/PlayerLightState.cs`: brillo del jugador y feedback visual.
-- `Assets/Scripts/Gameplay/PlayerAvatarSetup.cs`: presentación jugable del avatar, trail, glow y binding de cámara.
-- `Assets/Scripts/Gameplay/PlayerAvatarSelection.cs`: catálogo y persistencia del avatar seleccionado.
-- `Assets/Scripts/Gameplay/StarPickup.cs`: recolección de estrellas.
-- `Assets/Scripts/Gameplay/EnemyLightSeeker.cs`: detección, warning, persecución y daño por contacto.
-- `Assets/Scripts/Gameplay/LightChaseMath.cs`: fórmulas de brillo, firma de luz y warning.
-- `Assets/Scripts/Gameplay/PrototypeLevelManager.cs`: progreso, vidas, score, timer, HUD y estado de partida.
-- `Assets/Scripts/Gameplay/ExitPortal.cs`: desbloqueo y finalización del nivel.
-- `Assets/Scripts/Gameplay/LightChaseAtmosphere.cs`: ambientación visual nocturna para escena y cámaras.
+- `Assets/Project/LightChasePrototype/Scripts/Gameplay/PlayerLightState.cs`: brillo del jugador y feedback visual.
+- `Assets/Project/LightChasePrototype/Scripts/Gameplay/PlayerAvatarSetup.cs`: presentación jugable del avatar, trail, glow y binding de cámara.
+- `Assets/Project/LightChasePrototype/Scripts/Gameplay/PlayerAvatarSelection.cs`: catálogo y persistencia del avatar seleccionado.
+- `Assets/Project/LightChasePrototype/Scripts/Gameplay/LightChaseLevelCatalog.cs`: catálogo y persistencia del nivel seleccionado.
+- `Assets/Project/LightChasePrototype/Scripts/Gameplay/StarPickup.cs`: recolección de estrellas.
+- `Assets/Project/LightChasePrototype/Scripts/Gameplay/EnemyLightSeeker.cs`: detección, warning, persecución y daño por contacto.
+- `Assets/Project/LightChasePrototype/Scripts/Gameplay/LightChaseMath.cs`: fórmulas de brillo, firma de luz y warning.
+- `Assets/Project/LightChasePrototype/Scripts/Gameplay/PrototypeLevelManager.cs`: progreso, vidas, score, timer, HUD y estado de partida.
+- `Assets/Project/LightChasePrototype/Scripts/Gameplay/ExitPortal.cs`: desbloqueo y finalización del nivel.
+- `Assets/Project/LightChasePrototype/Scripts/Gameplay/LightChaseAtmosphere.cs`: ambientación visual nocturna para escena y cámaras.
 
 ### UI
 
-- `Assets/Scripts/UI/GameHudController.cs`: HUD de vidas, score, tiempo y estado.
-- `Assets/Scripts/UI/MainMenuController.cs`: menú principal, instrucciones, pausa y selección de avatar.
+- `Assets/Project/LightChasePrototype/Scripts/UI/GameHudController.cs`: HUD de vidas, score, tiempo y estado.
+- `Assets/Project/LightChasePrototype/Scripts/UI/MainMenuController.cs`: menú principal, instrucciones, pausa, selección de avatar y selección de nivel.
 
 ## Validación manual recomendada
 
@@ -201,22 +240,23 @@ Después de cualquier cambio de gameplay, valida mínimo esto en Play Mode:
 
 ## Tests
 
-Hay pruebas ya creadas en `Assets/Tests`:
+Hay pruebas ya creadas en `Assets/Project/LightChasePrototype/Tests`:
 
-- `Assets/Tests/Editor/LightChaseMathTests.cs`
-- `Assets/Tests/EditMode/GameHudControllerTests.cs`
-- `Assets/Tests/EditMode/LightChaseAtmosphereTests.cs`
-- `Assets/Tests/EditMode/PlayerAvatarSelectionTests.cs`
-- `Assets/Tests/EditMode/PrototypeLevelManagerTests.cs`
-- `Assets/Tests/EditMode/MainMenuControllerTests.cs`
+- `Assets/Project/LightChasePrototype/Tests/Editor/LightChaseMathTests.cs`
+- `Assets/Project/LightChasePrototype/Tests/EditMode/GameHudControllerTests.cs`
+- `Assets/Project/LightChasePrototype/Tests/EditMode/LightChaseAtmosphereTests.cs`
+- `Assets/Project/LightChasePrototype/Tests/EditMode/LightChaseLevelCatalogTests.cs`
+- `Assets/Project/LightChasePrototype/Tests/EditMode/PlayerAvatarSelectionTests.cs`
+- `Assets/Project/LightChasePrototype/Tests/EditMode/PrototypeLevelManagerTests.cs`
+- `Assets/Project/LightChasePrototype/Tests/EditMode/MainMenuControllerTests.cs`
 
 Puedes correrlas desde el `Test Runner` de Unity en modos `EditMode` y `Editor`.
 
 ## Convenciones del repo
 
-- Gameplay en `Assets/Scripts/Gameplay`
-- UI en `Assets/Scripts/UI`
-- Tooling/editor en `Assets/Editor`
+- Gameplay en `Assets/Project/LightChasePrototype/Scripts/Gameplay`
+- UI en `Assets/Project/LightChasePrototype/Scripts/UI`
+- Tooling/editor en `Assets/Project/LightChasePrototype/Editor`
 - Prefiere exponer tuning con `SerializeField`
 - Evita cambios que conviertan la progresión en ventaja gratuita
 

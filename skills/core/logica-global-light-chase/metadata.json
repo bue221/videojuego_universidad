@@ -1,0 +1,24 @@
+{
+  "name": "logica-global-light-chase",
+  "version": "1.0.0",
+  "description": "Canon obligatorio del gameplay de Light Chase Prototype para niveles, derrota, reinicio, tiempo, portal y alerta del enemigo.",
+  "language": "es",
+  "owner": "project",
+  "triggers": [
+    "logica del juego",
+    "reglas del juego",
+    "gameplay global",
+    "portal",
+    "estrellas",
+    "luces",
+    "enemigo",
+    "derrota",
+    "reintentar",
+    "menu principal",
+    "tiempo agotado",
+    "vidas",
+    "audio del enemigo",
+    "warning",
+    "persecucion"
+  ]
+}
