@@ -5,16 +5,16 @@ namespace LightChasePrototype
 {
     public static class LightChaseAtmosphere
     {
-        public static readonly Color NightFogColor = new(0.012f, 0.018f, 0.04f, 1f);
-        public static readonly Color NightAmbientColor = new(0.008f, 0.012f, 0.022f, 1f);
-        public static readonly Color NightHorizonColor = new(0.013f, 0.018f, 0.032f, 1f);
-        public static readonly Color NightGroundColor = new(0.004f, 0.006f, 0.012f, 1f);
-        public static readonly Color NightSkyColor = new(0.003f, 0.005f, 0.011f, 1f);
-        public static readonly Color MoonlightColor = new(0.11f, 0.15f, 0.24f, 1f);
+        public static readonly Color NightFogColor = new(0.02f, 0.028f, 0.052f, 1f);
+        public static readonly Color NightAmbientColor = new(0.018f, 0.024f, 0.04f, 1f);
+        public static readonly Color NightHorizonColor = new(0.024f, 0.032f, 0.056f, 1f);
+        public static readonly Color NightGroundColor = new(0.01f, 0.014f, 0.024f, 1f);
+        public static readonly Color NightSkyColor = new(0.008f, 0.012f, 0.022f, 1f);
+        public static readonly Color MoonlightColor = new(0.22f, 0.29f, 0.42f, 1f);
 
-        public const float ReflectionIntensity = 0.02f;
-        public const float FogDensity = 0.055f;
-        public const float DirectionalLightIntensity = 0.015f;
+        public const float ReflectionIntensity = 0.05f;
+        public const float FogDensity = 0.03f;
+        public const float DirectionalLightIntensity = 0.12f;
 
         public static void ApplyRenderSettings()
         {

@@ -6,6 +6,8 @@ using UnityEngine;
 
 public class LightChaseWaterLevelBuilderTests
 {
+    private const string PrototypeScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype.unity";
+    private const string NatureLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level02.unity";
     private const string WaterLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level03.unity";
 
     [Test]
@@ -17,12 +19,30 @@ public class LightChaseWaterLevelBuilderTests
         Assert.That(scene.path, Is.EqualTo(WaterLevelScenePath));
         Assert.That(GameObject.Find("Scenario3Environment"), Is.Not.Null);
         Assert.That(GameObject.Find("WaterHazards"), Is.Not.Null);
-        Assert.That(GameObject.Find("LightHunter"), Is.Not.Null);
+        var enemy = GameObject.Find("LightHunter");
+        Assert.That(enemy, Is.Not.Null);
+        Assert.That(enemy.transform.Find("Enemigo_01_Model"), Is.Not.Null);
+
+        var enemyRenderer = enemy.GetComponentInChildren<Renderer>();
+        Assert.That(enemyRenderer, Is.Not.Null);
+        Assert.That(enemyRenderer.sharedMaterial, Is.Not.Null);
+        Assert.That(enemyRenderer.sharedMaterial.GetTexture("_BaseMap"), Is.Not.Null);
         Assert.That(GameObject.Find("ExitPortal"), Is.Not.Null);
 
         var collectibles = GameObject.Find("Collectibles");
         Assert.That(collectibles, Is.Not.Null);
         Assert.That(collectibles.transform.childCount, Is.EqualTo(9));
+
+        var environment = GameObject.Find("Scenario3Environment");
+        var renderers = environment.GetComponentsInChildren<Renderer>();
+        Assert.That(renderers.Length, Is.GreaterThan(0), "Scenario environment must have renderers");
+
+        var firstMaterial = renderers[0].sharedMaterial;
+        Assert.That(firstMaterial, Is.Not.Null, "Scenario renderer must have a material assigned");
+        Assert.That(firstMaterial.shader.name, Is.EqualTo("Universal Render Pipeline/Lit"),
+            "Scenario material must use URP/Lit shader");
+        Assert.That(firstMaterial.GetTexture("_BaseMap"), Is.Not.Null,
+            "Scenario material must have a base color texture");
     }
 
     [Test]
@@ -44,5 +64,68 @@ public class LightChaseWaterLevelBuilderTests
 
         Assert.That(player, Is.Not.Null);
         Assert.That(waterVolumes.Length, Is.EqualTo(3));
+    }
+
+    [Test]
+    public void BuildLevel_PreservesExistingScenario3EnvironmentScale()
+    {
+        LightChaseWaterLevelBuilder.BuildLevel();
+
+        var environment = GameObject.Find("Scenario3Environment");
+        Assert.That(environment, Is.Not.Null);
+
+        var expectedScale = new Vector3(1.37f, 1.37f, 1.37f);
+        environment.transform.localScale = expectedScale;
+
+        LightChaseWaterLevelBuilder.BuildLevel();
+
+        var rebuiltEnvironment = GameObject.Find("Scenario3Environment");
+        Assert.That(rebuiltEnvironment, Is.Not.Null);
+        Assert.That(rebuiltEnvironment.transform.localScale.x, Is.EqualTo(expectedScale.x).Within(0.0001f));
+        Assert.That(rebuiltEnvironment.transform.localScale.y, Is.EqualTo(expectedScale.y).Within(0.0001f));
+        Assert.That(rebuiltEnvironment.transform.localScale.z, Is.EqualTo(expectedScale.z).Within(0.0001f));
+    }
+
+    [Test]
+    public void BuildLevel_EnsuresLevelsOneTwoAndThreeAreInBuildSettings()
+    {
+        LightChaseWaterLevelBuilder.BuildLevel();
+
+        Assert.That(HasEnabledScene(PrototypeScenePath), Is.True);
+        Assert.That(HasEnabledScene(NatureLevelScenePath), Is.True);
+        Assert.That(HasEnabledScene(WaterLevelScenePath), Is.True);
+    }
+
+    [Test]
+    public void BuildLevelFullRebuild_RebuildsScenarioEnvironmentScale()
+    {
+        LightChaseWaterLevelBuilder.BuildLevel();
+
+        var environment = GameObject.Find("Scenario3Environment");
+        Assert.That(environment, Is.Not.Null);
+
+        var forcedScale = new Vector3(9f, 9f, 9f);
+        environment.transform.localScale = forcedScale;
+
+        LightChaseWaterLevelBuilder.BuildLevelFullRebuild();
+
+        var rebuiltEnvironment = GameObject.Find("Scenario3Environment");
+        Assert.That(rebuiltEnvironment, Is.Not.Null);
+        Assert.That(rebuiltEnvironment.transform.localScale.x, Is.Not.EqualTo(forcedScale.x).Within(0.0001f));
+        Assert.That(rebuiltEnvironment.transform.localScale.y, Is.Not.EqualTo(forcedScale.y).Within(0.0001f));
+        Assert.That(rebuiltEnvironment.transform.localScale.z, Is.Not.EqualTo(forcedScale.z).Within(0.0001f));
+    }
+
+    private static bool HasEnabledScene(string scenePath)
+    {
+        foreach (var scene in EditorBuildSettings.scenes)
+        {
+            if (scene.path == scenePath)
+            {
+                return scene.enabled;
+            }
+        }
+
+        return false;
     }
 }

@@ -13,8 +13,12 @@ public static class LightChaseNatureLevelBuilder
 {
     private const string PlaygroundScenePath = "Assets/ThirdParty/StarterAssets/ThirdPersonController/Scenes/Playground.unity";
     private const string NatureLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level02.unity";
+    private const string PrototypeLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype.unity";
+    private const string WaterLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level03.unity";
     private const string PlayerPrefabPath = "Assets/ThirdParty/StarterAssets/ThirdPersonController/Prefabs/PlayerArmature.prefab";
     private const string CameraPrefabPath = "Assets/ThirdParty/StarterAssets/ThirdPersonController/Prefabs/PlayerFollowCamera.prefab";
+    private const string Enemy01ModelPath = "Assets/MeshyImports/Enemigo_01/Meshy_AI_El_Director_biped_Animation_Walking_withSkin.fbx";
+    private const string Enemy01MaterialPath = "Assets/MeshyImports/Enemigo_01/Material_1.mat";
     private static readonly Vector3 NatureSpawnPosition = new(-24f, 1.15f, -20f);
     private static readonly Quaternion NatureSpawnRotation = Quaternion.Euler(0f, 32f, 0f);
 
@@ -37,7 +41,7 @@ public static class LightChaseNatureLevelBuilder
         ConfigureStars();
         ConfigureExit();
         ConfigureNavigation();
-        EnsureSceneIncludedInBuildSettings(NatureLevelScenePath);
+        EnsureGameplayScenesIncludedInBuildSettings();
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
@@ -244,26 +248,112 @@ public static class LightChaseNatureLevelBuilder
 
     private static void ConfigureEnemy()
     {
-        var enemyPrefabAnchor = CreatePrefabInstance("Rock_01", new Vector3(8f, 0f, 7f), new Vector3(1.2f, 1.55f, 1.2f), 0f, null);
-        enemyPrefabAnchor.name = "LightHunter";
-        AlignInstanceBaseToY(enemyPrefabAnchor, 0f);
+        var enemyObject = CreateEnemyRoot("LightHunter", new Vector3(8f, 0f, 7f));
+        AlignInstanceBaseToY(enemyObject, 0f);
+        enemyObject.transform.position += Vector3.up * 0.02f;
 
-        var renderer = enemyPrefabAnchor.GetComponentInChildren<Renderer>();
-        if (renderer != null)
-        {
-            renderer.sharedMaterial = CreateMoonlitMaterial("LightHunter_Moonlit", renderer.sharedMaterial, new Color(0.55f, 0.24f, 0.18f));
-        }
+        var renderer = enemyObject.GetComponentInChildren<Renderer>();
 
-        var agent = enemyPrefabAnchor.AddComponent<NavMeshAgent>();
+        var agent = enemyObject.AddComponent<NavMeshAgent>();
         agent.angularSpeed = 240f;
         agent.acceleration = 24f;
         agent.stoppingDistance = 1.35f;
 
-        var enemy = enemyPrefabAnchor.AddComponent<EnemyLightSeeker>();
-        if (renderer != null)
+        var enemy = enemyObject.AddComponent<EnemyLightSeeker>();
+        enemy.ConfigureRenderer(renderer);
+    }
+
+    private static GameObject CreateEnemyRoot(string objectName, Vector3 position)
+    {
+        var root = new GameObject(objectName);
+        root.transform.position = position;
+
+        var modelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(Enemy01ModelPath);
+        if (modelPrefab != null)
         {
-            enemy.ConfigureRenderer(renderer);
+            var modelInstance = PrefabUtility.InstantiatePrefab(modelPrefab) as GameObject;
+            if (modelInstance == null)
+            {
+                modelInstance = Object.Instantiate(modelPrefab);
+            }
+
+            modelInstance.name = "Enemigo_01_Model";
+            modelInstance.transform.SetParent(root.transform, false);
+            ApplyEnemy01Material(modelInstance);
+            NormalizeModelHeight(modelInstance.transform, 2.2f);
+            return root;
         }
+
+        var fallback = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        fallback.name = "FallbackEnemy";
+        fallback.transform.SetParent(root.transform, false);
+        fallback.transform.localScale = new Vector3(1.2f, 1.4f, 1.2f);
+        return root;
+    }
+
+    private static void ApplyEnemy01Material(GameObject modelInstance)
+    {
+        if (modelInstance == null)
+        {
+            return;
+        }
+
+        var material = AssetDatabase.LoadAssetAtPath<Material>(Enemy01MaterialPath);
+        if (material == null)
+        {
+            return;
+        }
+
+        foreach (var renderer in modelInstance.GetComponentsInChildren<Renderer>(true))
+        {
+            if (renderer == null)
+            {
+                continue;
+            }
+
+            var shared = renderer.sharedMaterials;
+            if (shared == null || shared.Length == 0)
+            {
+                renderer.sharedMaterial = material;
+                continue;
+            }
+
+            for (var i = 0; i < shared.Length; i++)
+            {
+                shared[i] = material;
+            }
+
+            renderer.sharedMaterials = shared;
+        }
+    }
+
+    private static void NormalizeModelHeight(Transform modelRoot, float targetHeight)
+    {
+        if (modelRoot == null)
+        {
+            return;
+        }
+
+        var renderers = modelRoot.GetComponentsInChildren<Renderer>();
+        if (renderers == null || renderers.Length == 0)
+        {
+            return;
+        }
+
+        var bounds = renderers[0].bounds;
+        for (var i = 1; i < renderers.Length; i++)
+        {
+            bounds.Encapsulate(renderers[i].bounds);
+        }
+
+        var height = bounds.size.y;
+        if (height <= 0.01f)
+        {
+            return;
+        }
+
+        var factor = targetHeight / height;
+        modelRoot.localScale *= factor;
     }
 
     private static void ConfigureStars()
@@ -624,24 +714,39 @@ public static class LightChaseNatureLevelBuilder
         return component;
     }
 
-    private static void EnsureSceneIncludedInBuildSettings(string scenePath)
+    private static void EnsureGameplayScenesIncludedInBuildSettings()
     {
-        var existingScenes = EditorBuildSettings.scenes;
-        foreach (var existingScene in existingScenes)
+        var requiredScenes = new[]
         {
-            if (existingScene.path == scenePath)
+            PrototypeLevelScenePath,
+            NatureLevelScenePath,
+            WaterLevelScenePath
+        };
+
+        var existingScenes = EditorBuildSettings.scenes;
+        var updatedScenes = new System.Collections.Generic.List<EditorBuildSettingsScene>(existingScenes);
+
+        foreach (var scenePath in requiredScenes)
+        {
+            var exists = false;
+            for (var i = 0; i < updatedScenes.Count; i++)
             {
-                return;
+                if (updatedScenes[i].path != scenePath)
+                {
+                    continue;
+                }
+
+                updatedScenes[i].enabled = true;
+                exists = true;
+                break;
+            }
+
+            if (!exists)
+            {
+                updatedScenes.Add(new EditorBuildSettingsScene(scenePath, true));
             }
         }
 
-        var updatedScenes = new EditorBuildSettingsScene[existingScenes.Length + 1];
-        for (var i = 0; i < existingScenes.Length; i++)
-        {
-            updatedScenes[i] = existingScenes[i];
-        }
-
-        updatedScenes[^1] = new EditorBuildSettingsScene(scenePath, true);
-        EditorBuildSettings.scenes = updatedScenes;
+        EditorBuildSettings.scenes = updatedScenes.ToArray();
     }
 }

@@ -18,6 +18,7 @@ namespace LightChasePrototype.UI
         [SerializeField] private CanvasGroup menuCanvasGroup;
         [SerializeField] private bool pauseGameplayWhileVisible = true;
         [SerializeField] private GameObject mainActionsPanel;
+        [SerializeField] private GameObject levelSelectionPanel;
         [SerializeField] private GameObject avatarSelectionPanel;
         [SerializeField] private Text avatarDescriptionText;
         [SerializeField] private Image avatarPreviewImage;
@@ -25,6 +26,12 @@ namespace LightChasePrototype.UI
         [SerializeField] private GameObject defeatPanel;
         [SerializeField] private Text defeatTitleText;
         [SerializeField] private Text defeatMessageText;
+
+        [Header("Decorative Background")]
+        [SerializeField] private GameObject glowElement;
+        [SerializeField] private GameObject institutionBanner;
+        [SerializeField] private GameObject gameTitle;
+        [SerializeField] private GameObject subtitleElement;
 
         private Action<string> _sceneLoader;
         private Action _quitAction;
@@ -39,6 +46,7 @@ namespace LightChasePrototype.UI
         public bool MenuVisible => menuCanvasGroup != null && menuCanvasGroup.gameObject.activeSelf;
         public string SelectedAvatarId => PlayerAvatarSelection.SelectedAvatarId;
         public bool AvatarSelectionVisible => avatarSelectionPanel != null && avatarSelectionPanel.activeSelf;
+        public bool LevelSelectionVisible => levelSelectionPanel != null && levelSelectionPanel.activeSelf;
         public bool DefeatVisible => defeatPanel != null && defeatPanel.activeSelf;
         public string SelectedLevelId => ResolveSelectedLevel().Id;
         public string SelectedLevelSceneName => ResolveSelectedLevel().SceneName;
@@ -67,10 +75,15 @@ namespace LightChasePrototype.UI
 
             EnsureEventSystemExists();
 
-            var canvasObject = new GameObject("MainMenuOverlay");
+            var canvasObject = new GameObject("MainMenuOverlay", typeof(RectTransform));
             if (parent != null)
             {
                 canvasObject.transform.SetParent(parent, false);
+                var menuRect = canvasObject.GetComponent<RectTransform>();
+                menuRect.anchorMin = Vector2.zero;
+                menuRect.anchorMax = Vector2.one;
+                menuRect.offsetMin = Vector2.zero;
+                menuRect.offsetMax = Vector2.zero;
             }
             else
             {
@@ -92,23 +105,23 @@ namespace LightChasePrototype.UI
             var root = CreatePanel("Root", canvasObject.transform, new Color(0.01f, 0.02f, 0.05f, 0.92f));
             Stretch(root.GetComponent<RectTransform>());
 
-            var glow = CreatePanel("Glow", root.transform, new Color(0.18f, 0.35f, 0.6f, 0.16f));
-            SetAnchoredRect(glow.GetComponent<RectTransform>(), new Vector2(0.5f, 0.82f), new Vector2(980f, 250f));
+            var glowObject = CreatePanel("Glow", root.transform, new Color(0.18f, 0.35f, 0.6f, 0.16f));
+            SetAnchoredRect(glowObject.GetComponent<RectTransform>(), new Vector2(0.5f, 0.58f), new Vector2(1100f, 520f));
 
-            var institutionBanner = CreatePanel("InstitutionBanner", root.transform, new Color(0.04f, 0.08f, 0.16f, 0.82f));
-            SetAnchoredRect(institutionBanner.GetComponent<RectTransform>(), new Vector2(0.5f, 0.86f), new Vector2(1040f, 150f));
+            var bannerObject = CreatePanel("InstitutionBanner", root.transform, new Color(0.04f, 0.08f, 0.16f, 0.82f));
+            SetAnchoredRect(bannerObject.GetComponent<RectTransform>(), new Vector2(0.5f, 0.92f), new Vector2(1100f, 100f));
 
-            CreateText("UniversityTitle", institutionBanner.transform, "UNIVERSIDAD CENTRAL", 40, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.86f, 0.94f, 1f));
-            SetAnchoredRect(institutionBanner.transform.Find("UniversityTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.7f), new Vector2(900f, 52f));
+            CreateStyledText("UniversityTitle", bannerObject.transform, "UNIVERSIDAD CENTRAL", 32, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.86f, 0.94f, 1f));
+            SetAnchoredRect(bannerObject.transform.Find("UniversityTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.62f), new Vector2(960f, 44f));
 
-            CreateText("CourseTitle", institutionBanner.transform, "MODELADO 3D Y VIDEOJUEGOS 2026", 28, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.72f, 0.86f, 1f));
-            SetAnchoredRect(institutionBanner.transform.Find("CourseTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.34f), new Vector2(940f, 44f));
+            CreateStyledText("CourseTitle", bannerObject.transform, "MODELADO 3D Y VIDEOJUEGOS 2026", 22, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.72f, 0.86f, 1f));
+            SetAnchoredRect(bannerObject.transform.Find("CourseTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.28f), new Vector2(960f, 34f));
 
-            CreateText("GameTitle", root.transform, "CORRE CORRE QUE TE ATRAPAN", 56, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.94f, 0.72f));
-            SetAnchoredRect(root.transform.Find("GameTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.68f), new Vector2(1180f, 88f));
+            var gameTitleObject = CreateStyledTextWithObject("GameTitle", root.transform, "CORRE CORRE QUE TE ATRAPO", 48, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.94f, 0.72f));
+            SetAnchoredRect(gameTitleObject.GetComponent<RectTransform>(), new Vector2(0.5f, 0.76f), new Vector2(1100f, 70f));
 
-            CreateText("Subtitle", root.transform, "La luz te delata. Entre mas estrellas recojas, mas facil te cazan.", 22, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(0.78f, 0.86f, 0.96f));
-            SetAnchoredRect(root.transform.Find("Subtitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.6f), new Vector2(1100f, 54f));
+            var subtitleObject = CreateStyledTextWithObject("Subtitle", root.transform, "Modelado 3D y videojuegos", 22, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(0.78f, 0.86f, 0.96f));
+            SetAnchoredRect(subtitleObject.GetComponent<RectTransform>(), new Vector2(0.5f, 0.67f), new Vector2(1000f, 38f));
 
             var levelSection = CreateLevelSelectionPanel(root.transform);
 
@@ -119,13 +132,13 @@ namespace LightChasePrototype.UI
             var buttonStack = new GameObject("ButtonStack", typeof(RectTransform), typeof(VerticalLayoutGroup));
             buttonStack.transform.SetParent(root.transform, false);
             var stackRect = buttonStack.GetComponent<RectTransform>();
-            stackRect.anchorMin = new Vector2(0.5f, 0.18f);
-            stackRect.anchorMax = new Vector2(0.5f, 0.18f);
-            stackRect.sizeDelta = new Vector2(420f, 180f);
+            stackRect.anchorMin = new Vector2(0.5f, 0.32f);
+            stackRect.anchorMax = new Vector2(0.5f, 0.32f);
+            stackRect.sizeDelta = new Vector2(420f, 280f);
 
             var layout = buttonStack.GetComponent<VerticalLayoutGroup>();
             layout.childAlignment = TextAnchor.MiddleCenter;
-            layout.spacing = 18f;
+            layout.spacing = 20f;
             layout.childControlHeight = false;
             layout.childControlWidth = true;
             layout.childForceExpandHeight = false;
@@ -137,6 +150,7 @@ namespace LightChasePrototype.UI
             controller.gameplaySceneName = assignedGameplaySceneName;
             controller.menuCanvasGroup = menuGroup;
             controller.mainActionsPanel = buttonStack;
+            controller.levelSelectionPanel = levelSection;
             controller.avatarSelectionPanel = avatarSection;
             controller.avatarDescriptionText = avatarSection.transform.Find("AvatarDescription").GetComponent<Text>();
             controller.avatarPreviewImage = avatarSection.transform.Find("AvatarPreviewFrame/AvatarPreview").GetComponent<Image>();
@@ -144,11 +158,17 @@ namespace LightChasePrototype.UI
             controller.defeatPanel = defeatSection;
             controller.defeatTitleText = defeatSection.transform.Find("DefeatTitle").GetComponent<Text>();
             controller.defeatMessageText = defeatSection.transform.Find("DefeatMessage").GetComponent<Text>();
+            controller.glowElement = glowObject;
+            controller.institutionBanner = bannerObject;
+            controller.gameTitle = gameTitleObject;
+            controller.subtitleElement = subtitleObject;
             controller.RegisterAvatarButton(PlayerAvatarSelection.ArmatureAvatarId, avatarSection.transform.Find("AvatarButtonRow/HumanoButton").GetComponent<Button>());
             controller.RegisterAvatarButton(PlayerAvatarSelection.CapsuleAvatarId, avatarSection.transform.Find("AvatarButtonRow/CapsulaButton").GetComponent<Button>());
             controller.RegisterLevelButton(LightChaseLevelCatalog.PrototypeLevelId, levelSection.transform.Find("LevelButtonRow/Nivel1Button").GetComponent<Button>());
             controller.RegisterLevelButton(LightChaseLevelCatalog.NatureLevelId, levelSection.transform.Find("LevelButtonRow/Nivel2Button").GetComponent<Button>());
             controller.RegisterLevelButton(LightChaseLevelCatalog.WaterLevelId, levelSection.transform.Find("LevelButtonRow/Nivel3Button").GetComponent<Button>());
+            levelSection.transform.Find("LevelActionRow/ConfirmLevelButton").GetComponent<Button>().onClick.AddListener(controller.ShowAvatarSelectionFromLevel);
+            levelSection.transform.Find("LevelActionRow/BackLevelButton").GetComponent<Button>().onClick.AddListener(controller.HideLevelSelection);
             avatarSection.transform.Find("AvatarActionRow/ConfirmAvatarButton").GetComponent<Button>().onClick.AddListener(controller.StartGameFromAvatarSelection);
             avatarSection.transform.Find("AvatarActionRow/BackAvatarButton").GetComponent<Button>().onClick.AddListener(controller.HideAvatarSelection);
             defeatSection.transform.Find("DefeatButtonRow/RetryButton").GetComponent<Button>().onClick.AddListener(controller.RetryCurrentLevel);
@@ -156,6 +176,7 @@ namespace LightChasePrototype.UI
 
             instructions.transform.Find("CloseButton").GetComponent<Button>().onClick.AddListener(controller.HideInstructions);
             CreateMenuButton(buttonStack.transform, "Jugar", new Color(0.12f, 0.45f, 0.75f), controller.PlayGame);
+            CreateMenuButton(buttonStack.transform, "Instrucciones", new Color(0.16f, 0.33f, 0.5f), controller.ShowInstructions);
             CreateMenuButton(buttonStack.transform, "Salir", new Color(0.28f, 0.16f, 0.24f), controller.QuitGame);
 
             controller.RefreshAvatarSelectionUi();
@@ -169,6 +190,7 @@ namespace LightChasePrototype.UI
             gameplaySceneName = assignedGameplaySceneName;
             EnsureUiReferences();
             HideInstructions();
+            HideLevelSelection();
             HideAvatarSelection();
             HideDefeat();
             ShowMainActions();
@@ -199,6 +221,7 @@ namespace LightChasePrototype.UI
             EnsureUiReferences();
             SyncSelectedLevelToActiveScene();
             HideInstructions();
+            HideLevelSelection();
             HideAvatarSelection();
             HideDefeat();
             ShowMainActions();
@@ -210,6 +233,18 @@ namespace LightChasePrototype.UI
             if (InstructionsVisible && Input.GetKeyDown(KeyCode.Escape))
             {
                 HideInstructions();
+                return;
+            }
+
+            if (LevelSelectionVisible && Input.GetKeyDown(KeyCode.Escape))
+            {
+                HideLevelSelection();
+                return;
+            }
+
+            if (AvatarSelectionVisible && Input.GetKeyDown(KeyCode.Escape))
+            {
+                HideAvatarSelection();
             }
         }
 
@@ -218,28 +253,55 @@ namespace LightChasePrototype.UI
             EnsureUiReferences();
             HideDefeat();
 
-            var selectedLevel = ResolveSelectedLevel();
-            if (GetActiveSceneName() == selectedLevel.SceneName)
+            if (AvatarSelectionVisible)
             {
-                var levelManager = UnityEngine.Object.FindAnyObjectByType<PrototypeLevelManager>();
-                if (levelManager != null && (levelManager.GameOver || levelManager.LevelCompleted))
-                {
-                    LoadLevelScene(selectedLevel.SceneName);
-                    return;
-                }
-
-                PlayerAvatarSetup.EnsureSelectedAvatarInScene();
-                HideMenu();
+                StartGameFromAvatarSelection();
                 return;
             }
 
-            if (!AvatarSelectionVisible)
+            // Level selection is disabled: the run always starts at Level 1 and
+            // the game advances automatically after completing a level.
+            if (!LightChaseLevelCatalog.IsKnownSceneName(GetActiveSceneName()))
             {
-                ShowAvatarSelection();
+                LightChaseLevelCatalog.SelectLevel(LightChaseLevelCatalog.PrototypeLevelId);
+            }
+
+            ShowAvatarSelection();
+        }
+
+        public void ShowLevelSelection()
+        {
+            EnsureUiReferences();
+
+            if (levelSelectionPanel == null)
+            {
                 return;
             }
 
-            StartGameFromAvatarSelection();
+            HideInstructions();
+            HideAvatarSelection();
+            HideMainActions();
+            HideDecorativeElements();
+            levelSelectionPanel.SetActive(true);
+            RefreshLevelSelectionUi();
+        }
+
+        public void HideLevelSelection()
+        {
+            if (levelSelectionPanel == null)
+            {
+                ShowMainActions();
+                return;
+            }
+
+            levelSelectionPanel.SetActive(false);
+            ShowMainActions();
+        }
+
+        public void ShowAvatarSelectionFromLevel()
+        {
+            HideLevelSelection();
+            ShowAvatarSelection();
         }
 
         public void ShowAvatarSelection()
@@ -252,7 +314,9 @@ namespace LightChasePrototype.UI
             }
 
             HideInstructions();
+            HideLevelSelection();
             HideMainActions();
+            HideDecorativeElements();
             avatarSelectionPanel.SetActive(true);
             RefreshAvatarSelectionUi();
         }
@@ -278,8 +342,10 @@ namespace LightChasePrototype.UI
                 return;
             }
 
+            HideLevelSelection();
             HideAvatarSelection();
             HideMainActions();
+            HideDecorativeElements();
             instructionsPanel.SetActive(true);
         }
 
@@ -314,9 +380,11 @@ namespace LightChasePrototype.UI
         {
             EnsureUiReferences();
             HideInstructions();
+            HideLevelSelection();
             HideAvatarSelection();
             HideDefeat();
             ShowMainActions();
+            ShowDecorativeElements();
             RefreshAvatarSelectionUi();
             RefreshLevelSelectionUi();
 
@@ -340,6 +408,7 @@ namespace LightChasePrototype.UI
         public void HideMenu()
         {
             HideInstructions();
+            HideLevelSelection();
             HideAvatarSelection();
             HideDefeat();
             HideMainActions();
@@ -365,8 +434,10 @@ namespace LightChasePrototype.UI
         {
             EnsureUiReferences();
             HideInstructions();
+            HideLevelSelection();
             HideAvatarSelection();
             HideMainActions();
+            HideDecorativeElements();
 
             if (defeatTitleText != null)
             {
@@ -495,7 +566,23 @@ namespace LightChasePrototype.UI
         private void StartGameFromAvatarSelection()
         {
             HideDefeat();
-            LoadLevelScene(ResolveSelectedLevel().SceneName);
+            var selectedLevel = ResolveSelectedLevel();
+
+            if (GetActiveSceneName() == selectedLevel.SceneName)
+            {
+                var levelManager = UnityEngine.Object.FindAnyObjectByType<PrototypeLevelManager>();
+                if (levelManager != null && (levelManager.GameOver || levelManager.LevelCompleted))
+                {
+                    LoadLevelScene(selectedLevel.SceneName);
+                    return;
+                }
+
+                PlayerAvatarSetup.EnsureSelectedAvatarInScene();
+                HideMenu();
+                return;
+            }
+
+            LoadLevelScene(selectedLevel.SceneName);
         }
 
         private void LoadLevelScene(string sceneName)
@@ -580,6 +667,24 @@ namespace LightChasePrototype.UI
             mainActionsPanel.SetActive(visible);
         }
 
+        private void SetDecorativeElementsVisible(bool visible)
+        {
+            if (glowElement != null) glowElement.SetActive(visible);
+            if (institutionBanner != null) institutionBanner.SetActive(visible);
+            if (gameTitle != null) gameTitle.SetActive(visible);
+            if (subtitleElement != null) subtitleElement.SetActive(visible);
+        }
+
+        private void HideDecorativeElements()
+        {
+            SetDecorativeElementsVisible(false);
+        }
+
+        private void ShowDecorativeElements()
+        {
+            SetDecorativeElementsVisible(true);
+        }
+
         private void HideDefeat()
         {
             if (defeatPanel != null)
@@ -615,6 +720,11 @@ namespace LightChasePrototype.UI
             if (mainActionsPanel == null)
             {
                 mainActionsPanel = transform.Find("ButtonStack")?.gameObject;
+            }
+
+            if (levelSelectionPanel == null)
+            {
+                levelSelectionPanel = transform.Find("LevelSelectionPanel")?.gameObject;
             }
 
             if (avatarSelectionPanel == null)
@@ -656,20 +766,43 @@ namespace LightChasePrototype.UI
             {
                 defeatMessageText = defeatPanel?.transform.Find("DefeatMessage")?.GetComponent<Text>();
             }
+
+            if (glowElement == null)
+            {
+                glowElement = transform.Find("Glow")?.gameObject;
+            }
+
+            if (institutionBanner == null)
+            {
+                institutionBanner = transform.Find("InstitutionBanner")?.gameObject;
+            }
+
+            if (gameTitle == null)
+            {
+                gameTitle = transform.Find("GameTitle")?.gameObject;
+            }
+
+            if (subtitleElement == null)
+            {
+                subtitleElement = transform.Find("Subtitle")?.gameObject;
+            }
         }
 
         private bool HasRequiredMenuStructure()
         {
             return mainActionsPanel != null
+                && levelSelectionPanel != null
+                && levelSelectionPanel.transform.Find("LevelButtonRow/Nivel1Button") != null
+                && levelSelectionPanel.transform.Find("LevelButtonRow/Nivel2Button") != null
+                && levelSelectionPanel.transform.Find("LevelButtonRow/Nivel3Button") != null
+                && levelSelectionPanel.transform.Find("LevelActionRow/ConfirmLevelButton") != null
+                && levelSelectionPanel.transform.Find("LevelActionRow/BackLevelButton") != null
                 && avatarSelectionPanel != null
                 && avatarSelectionPanel.transform.Find("AvatarButtonRow/HumanoButton") != null
                 && avatarSelectionPanel.transform.Find("AvatarButtonRow/CapsulaButton") != null
                 && avatarSelectionPanel.transform.Find("AvatarActionRow/ConfirmAvatarButton") != null
                 && avatarSelectionPanel.transform.Find("AvatarActionRow/BackAvatarButton") != null
                 && avatarSelectionPanel.transform.Find("AvatarPreviewFrame/AvatarPreview") != null
-                && transform.Find("LevelSelectionPanel/LevelButtonRow/Nivel1Button") != null
-                && transform.Find("LevelSelectionPanel/LevelButtonRow/Nivel2Button") != null
-                && transform.Find("LevelSelectionPanel/LevelButtonRow/Nivel3Button") != null
                 && instructionsPanel != null;
         }
 
@@ -855,24 +988,24 @@ namespace LightChasePrototype.UI
 
         private static GameObject CreateAvatarSelectionPanel(Transform parent)
         {
-            var panel = CreatePanel("AvatarSelectionPanel", parent, new Color(0.03f, 0.06f, 0.12f, 0.8f));
-            SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.36f), new Vector2(1040f, 420f));
+            var panel = CreatePanel("AvatarSelectionPanel", parent, new Color(0.03f, 0.06f, 0.12f, 0.92f));
+            SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(1000f, 440f));
 
-            CreateText("AvatarTitle", panel.transform, "ELIGE TU AVATAR", 28, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.95f, 0.96f, 1f));
+            CreateStyledText("AvatarTitle", panel.transform, "ELIGE TU AVATAR", 32, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.95f, 0.72f));
             var titleRect = panel.transform.Find("AvatarTitle").GetComponent<RectTransform>();
-            titleRect.anchorMin = new Vector2(0.5f, 0.88f);
-            titleRect.anchorMax = new Vector2(0.5f, 0.88f);
-            titleRect.sizeDelta = new Vector2(520f, 40f);
+            titleRect.anchorMin = new Vector2(0.5f, 0.90f);
+            titleRect.anchorMax = new Vector2(0.5f, 0.90f);
+            titleRect.sizeDelta = new Vector2(520f, 44f);
             titleRect.anchoredPosition = Vector2.zero;
 
             var previewFrame = CreatePanel("AvatarPreviewFrame", panel.transform, new Color(0.06f, 0.1f, 0.18f, 0.92f));
-            SetAnchoredRect(previewFrame.GetComponent<RectTransform>(), new Vector2(0.24f, 0.5f), new Vector2(250f, 250f));
+            SetAnchoredRect(previewFrame.GetComponent<RectTransform>(), new Vector2(0.24f, 0.48f), new Vector2(240f, 240f));
 
             var previewImageObject = new GameObject("AvatarPreview", typeof(RectTransform), typeof(Image));
             previewImageObject.transform.SetParent(previewFrame.transform, false);
             var previewImageRect = previewImageObject.GetComponent<RectTransform>();
-            previewImageRect.anchorMin = new Vector2(0.08f, 0.08f);
-            previewImageRect.anchorMax = new Vector2(0.92f, 0.92f);
+            previewImageRect.anchorMin = new Vector2(0.06f, 0.06f);
+            previewImageRect.anchorMax = new Vector2(0.94f, 0.94f);
             previewImageRect.offsetMin = Vector2.zero;
             previewImageRect.offsetMax = Vector2.zero;
             var previewImage = previewImageObject.GetComponent<Image>();
@@ -882,9 +1015,9 @@ namespace LightChasePrototype.UI
             var buttonRow = new GameObject("AvatarButtonRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
             buttonRow.transform.SetParent(panel.transform, false);
             var rowRect = buttonRow.GetComponent<RectTransform>();
-            rowRect.anchorMin = new Vector2(0.66f, 0.62f);
-            rowRect.anchorMax = new Vector2(0.66f, 0.62f);
-            rowRect.sizeDelta = new Vector2(500f, 72f);
+            rowRect.anchorMin = new Vector2(0.68f, 0.66f);
+            rowRect.anchorMax = new Vector2(0.68f, 0.66f);
+            rowRect.sizeDelta = new Vector2(460f, 68f);
             rowRect.anchoredPosition = Vector2.zero;
 
             var rowLayout = buttonRow.GetComponent<HorizontalLayoutGroup>();
@@ -897,29 +1030,29 @@ namespace LightChasePrototype.UI
 
             var humanoButton = CreateMenuButton(buttonRow.transform, "Humano", new Color(0.16f, 0.24f, 0.38f), null);
             humanoButton.name = "HumanoButton";
-            humanoButton.GetComponent<RectTransform>().sizeDelta = new Vector2(220f, 68f);
+            humanoButton.GetComponent<RectTransform>().sizeDelta = new Vector2(210f, 64f);
 
             var capsulaButton = CreateMenuButton(buttonRow.transform, "Capsula", new Color(0.16f, 0.24f, 0.38f), null);
             capsulaButton.name = "CapsulaButton";
-            capsulaButton.GetComponent<RectTransform>().sizeDelta = new Vector2(220f, 68f);
+            capsulaButton.GetComponent<RectTransform>().sizeDelta = new Vector2(210f, 64f);
 
-            CreateText("AvatarDescription", panel.transform, string.Empty, 20, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(0.8f, 0.88f, 0.97f));
+            CreateStyledText("AvatarDescription", panel.transform, string.Empty, 20, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(0.8f, 0.88f, 0.97f));
             var descriptionRect = panel.transform.Find("AvatarDescription").GetComponent<RectTransform>();
-            descriptionRect.anchorMin = new Vector2(0.66f, 0.38f);
-            descriptionRect.anchorMax = new Vector2(0.66f, 0.38f);
-            descriptionRect.sizeDelta = new Vector2(520f, 86f);
+            descriptionRect.anchorMin = new Vector2(0.68f, 0.40f);
+            descriptionRect.anchorMax = new Vector2(0.68f, 0.40f);
+            descriptionRect.sizeDelta = new Vector2(480f, 86f);
             descriptionRect.anchoredPosition = Vector2.zero;
 
             var actionRow = new GameObject("AvatarActionRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
             actionRow.transform.SetParent(panel.transform, false);
             var actionRect = actionRow.GetComponent<RectTransform>();
-            actionRect.anchorMin = new Vector2(0.66f, 0.16f);
-            actionRect.anchorMax = new Vector2(0.66f, 0.16f);
-            actionRect.sizeDelta = new Vector2(500f, 68f);
+            actionRect.anchorMin = new Vector2(0.68f, 0.14f);
+            actionRect.anchorMax = new Vector2(0.68f, 0.14f);
+            actionRect.sizeDelta = new Vector2(460f, 64f);
 
             var actionLayout = actionRow.GetComponent<HorizontalLayoutGroup>();
             actionLayout.childAlignment = TextAnchor.MiddleCenter;
-            actionLayout.spacing = 18f;
+            actionLayout.spacing = 20f;
             actionLayout.childControlWidth = false;
             actionLayout.childControlHeight = false;
             actionLayout.childForceExpandWidth = false;
@@ -927,11 +1060,11 @@ namespace LightChasePrototype.UI
 
             var confirmButton = CreateMenuButton(actionRow.transform, "Comenzar", new Color(0.12f, 0.45f, 0.75f), null);
             confirmButton.name = "ConfirmAvatarButton";
-            confirmButton.GetComponent<RectTransform>().sizeDelta = new Vector2(240f, 64f);
+            confirmButton.GetComponent<RectTransform>().sizeDelta = new Vector2(240f, 60f);
 
             var backButton = CreateMenuButton(actionRow.transform, "Volver", new Color(0.2f, 0.24f, 0.3f), null);
             backButton.name = "BackAvatarButton";
-            backButton.GetComponent<RectTransform>().sizeDelta = new Vector2(180f, 64f);
+            backButton.GetComponent<RectTransform>().sizeDelta = new Vector2(180f, 60f);
 
             panel.SetActive(false);
 
@@ -940,22 +1073,22 @@ namespace LightChasePrototype.UI
 
         private static GameObject CreateLevelSelectionPanel(Transform parent)
         {
-            var panel = CreatePanel("LevelSelectionPanel", parent, new Color(0.03f, 0.06f, 0.12f, 0.78f));
-            SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.42f), new Vector2(1060f, 178f));
+            var panel = CreatePanel("LevelSelectionPanel", parent, new Color(0.03f, 0.06f, 0.12f, 0.92f));
+            SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(1000f, 340f));
 
-            CreateText("LevelTitle", panel.transform, "ELIGE LA RUTA", 26, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.94f, 0.96f, 1f));
-            SetAnchoredRect(panel.transform.Find("LevelTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.8f), new Vector2(420f, 36f));
+            CreateStyledText("LevelTitle", panel.transform, "ELIGE LA RUTA", 32, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.95f, 0.72f));
+            SetAnchoredRect(panel.transform.Find("LevelTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.86f), new Vector2(480f, 44f));
 
             var levelButtonRow = new GameObject("LevelButtonRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
             levelButtonRow.transform.SetParent(panel.transform, false);
             var rowRect = levelButtonRow.GetComponent<RectTransform>();
-            rowRect.anchorMin = new Vector2(0.5f, 0.5f);
-            rowRect.anchorMax = new Vector2(0.5f, 0.5f);
-            rowRect.sizeDelta = new Vector2(960f, 64f);
+            rowRect.anchorMin = new Vector2(0.5f, 0.58f);
+            rowRect.anchorMax = new Vector2(0.5f, 0.58f);
+            rowRect.sizeDelta = new Vector2(880f, 64f);
 
             var rowLayout = levelButtonRow.GetComponent<HorizontalLayoutGroup>();
             rowLayout.childAlignment = TextAnchor.MiddleCenter;
-            rowLayout.spacing = 16f;
+            rowLayout.spacing = 18f;
             rowLayout.childControlWidth = false;
             rowLayout.childControlHeight = false;
             rowLayout.childForceExpandWidth = false;
@@ -963,39 +1096,63 @@ namespace LightChasePrototype.UI
 
             var nivel1Button = CreateMenuButton(levelButtonRow.transform, "Nivel 1", new Color(0.1f, 0.2f, 0.32f), null);
             nivel1Button.name = "Nivel1Button";
-            nivel1Button.GetComponent<RectTransform>().sizeDelta = new Vector2(280f, 62f);
+            nivel1Button.GetComponent<RectTransform>().sizeDelta = new Vector2(260f, 60f);
 
             var nivel2Button = CreateMenuButton(levelButtonRow.transform, "Nivel 2", new Color(0.1f, 0.2f, 0.32f), null);
             nivel2Button.name = "Nivel2Button";
-            nivel2Button.GetComponent<RectTransform>().sizeDelta = new Vector2(280f, 62f);
+            nivel2Button.GetComponent<RectTransform>().sizeDelta = new Vector2(260f, 60f);
 
             var nivel3Button = CreateMenuButton(levelButtonRow.transform, "Nivel 3", new Color(0.1f, 0.2f, 0.32f), null);
             nivel3Button.name = "Nivel3Button";
-            nivel3Button.GetComponent<RectTransform>().sizeDelta = new Vector2(280f, 62f);
+            nivel3Button.GetComponent<RectTransform>().sizeDelta = new Vector2(260f, 60f);
 
-            CreateText("LevelDescription", panel.transform, string.Empty, 18, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(0.8f, 0.88f, 0.97f));
-            SetAnchoredRect(panel.transform.Find("LevelDescription").GetComponent<RectTransform>(), new Vector2(0.5f, 0.18f), new Vector2(920f, 40f));
+            CreateStyledText("LevelDescription", panel.transform, string.Empty, 20, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(0.8f, 0.88f, 0.97f));
+            SetAnchoredRect(panel.transform.Find("LevelDescription").GetComponent<RectTransform>(), new Vector2(0.5f, 0.34f), new Vector2(880f, 56f));
 
+            var actionRow = new GameObject("LevelActionRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            actionRow.transform.SetParent(panel.transform, false);
+            var actionRect = actionRow.GetComponent<RectTransform>();
+            actionRect.anchorMin = new Vector2(0.5f, 0.12f);
+            actionRect.anchorMax = new Vector2(0.5f, 0.12f);
+            actionRect.sizeDelta = new Vector2(480f, 64f);
+
+            var actionLayout = actionRow.GetComponent<HorizontalLayoutGroup>();
+            actionLayout.childAlignment = TextAnchor.MiddleCenter;
+            actionLayout.spacing = 20f;
+            actionLayout.childControlWidth = false;
+            actionLayout.childControlHeight = false;
+            actionLayout.childForceExpandWidth = false;
+            actionLayout.childForceExpandHeight = false;
+
+            var confirmButton = CreateMenuButton(actionRow.transform, "Continuar", new Color(0.12f, 0.45f, 0.75f), null);
+            confirmButton.name = "ConfirmLevelButton";
+            confirmButton.GetComponent<RectTransform>().sizeDelta = new Vector2(240f, 60f);
+
+            var backButton = CreateMenuButton(actionRow.transform, "Volver", new Color(0.2f, 0.24f, 0.3f), null);
+            backButton.name = "BackLevelButton";
+            backButton.GetComponent<RectTransform>().sizeDelta = new Vector2(180f, 60f);
+
+            panel.SetActive(false);
             return panel;
         }
 
         private static GameObject CreateDefeatPanel(Transform parent)
         {
-            var panel = CreatePanel("DefeatPanel", parent, new Color(0.02f, 0.04f, 0.08f, 0.94f));
-            SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.33f), new Vector2(920f, 320f));
+            var panel = CreatePanel("DefeatPanel", parent, new Color(0.02f, 0.04f, 0.08f, 0.96f));
+            SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(900f, 340f));
 
-            CreateText("DefeatTitle", panel.transform, "PARTIDA TERMINADA", 34, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.92f, 0.78f));
-            SetAnchoredRect(panel.transform.Find("DefeatTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.78f), new Vector2(620f, 54f));
+            CreateStyledText("DefeatTitle", panel.transform, "PARTIDA TERMINADA", 36, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.88f, 0.68f));
+            SetAnchoredRect(panel.transform.Find("DefeatTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.78f), new Vector2(640f, 54f));
 
-            CreateText("DefeatMessage", panel.transform, string.Empty, 22, FontStyle.Normal, TextAnchor.MiddleCenter, new Color(0.84f, 0.9f, 1f));
-            SetAnchoredRect(panel.transform.Find("DefeatMessage").GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(760f, 92f));
+            CreateStyledText("DefeatMessage", panel.transform, string.Empty, 22, FontStyle.Normal, TextAnchor.MiddleCenter, new Color(0.84f, 0.9f, 1f));
+            SetAnchoredRect(panel.transform.Find("DefeatMessage").GetComponent<RectTransform>(), new Vector2(0.5f, 0.48f), new Vector2(780f, 100f));
 
             var buttonRow = new GameObject("DefeatButtonRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
             buttonRow.transform.SetParent(panel.transform, false);
             var rowRect = buttonRow.GetComponent<RectTransform>();
-            rowRect.anchorMin = new Vector2(0.5f, 0.2f);
-            rowRect.anchorMax = new Vector2(0.5f, 0.2f);
-            rowRect.sizeDelta = new Vector2(560f, 68f);
+            rowRect.anchorMin = new Vector2(0.5f, 0.14f);
+            rowRect.anchorMax = new Vector2(0.5f, 0.14f);
+            rowRect.sizeDelta = new Vector2(540f, 64f);
 
             var rowLayout = buttonRow.GetComponent<HorizontalLayoutGroup>();
             rowLayout.childAlignment = TextAnchor.MiddleCenter;
@@ -1007,11 +1164,11 @@ namespace LightChasePrototype.UI
 
             var retryButton = CreateMenuButton(buttonRow.transform, "Reintentar", new Color(0.12f, 0.45f, 0.75f), null);
             retryButton.name = "RetryButton";
-            retryButton.GetComponent<RectTransform>().sizeDelta = new Vector2(240f, 64f);
+            retryButton.GetComponent<RectTransform>().sizeDelta = new Vector2(240f, 60f);
 
-            var menuButton = CreateMenuButton(buttonRow.transform, "Salir al menu principal", new Color(0.2f, 0.24f, 0.3f), null);
+            var menuButton = CreateMenuButton(buttonRow.transform, "Al menu principal", new Color(0.2f, 0.24f, 0.3f), null);
             menuButton.name = "MenuButton";
-            menuButton.GetComponent<RectTransform>().sizeDelta = new Vector2(280f, 64f);
+            menuButton.GetComponent<RectTransform>().sizeDelta = new Vector2(270f, 60f);
 
             panel.SetActive(false);
             return panel;
@@ -1019,15 +1176,17 @@ namespace LightChasePrototype.UI
 
         private static GameObject CreateInstructionsPanel(Transform parent)
         {
-            var panel = CreatePanel("InstructionsPanel", parent, new Color(0.01f, 0.02f, 0.05f, 0.96f));
-            SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(1140f, 680f));
+            var panel = CreatePanel("InstructionsPanel", parent, new Color(0.01f, 0.02f, 0.05f, 0.97f));
+            SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(1100f, 680f));
 
-            CreateText("InstructionsTitle", panel.transform, "COMO JUGAR", 38, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.95f, 0.72f));
-            SetAnchoredRect(panel.transform.Find("InstructionsTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.86f), new Vector2(600f, 60f));
+            CreateStyledText("InstructionsTitle", panel.transform, "COMO JUGAR", 38, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.95f, 0.72f));
+            SetAnchoredRect(panel.transform.Find("InstructionsTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.88f), new Vector2(600f, 56f));
 
-            CreateText(
-                "InstructionsBody",
-                panel.transform,
+            var bodyObject = new GameObject("InstructionsBody", typeof(RectTransform), typeof(Text));
+            bodyObject.transform.SetParent(panel.transform, false);
+            var bodyText = bodyObject.GetComponent<Text>();
+            bodyText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            bodyText.text =
                 "OBJETIVO\n" +
                 "Recoge 5 de las 7 estrellas para activar el portal de salida y escapar.\n\n" +
                 "CONTROLES\n" +
@@ -1042,28 +1201,33 @@ namespace LightChasePrototype.UI
                 "El perseguidor reacciona a tu firma de luz. Si estas muy brillante, te encuentra antes, acelera durante la persecucion y te quita vidas al alcanzarte.\n" +
                 "Si oyes o ves que entra en alerta, cambia de ruta o corre al portal si ya esta activo.\n\n" +
                 "CONDICIONES DE PARTIDA\n" +
-                "Tienes 3 vidas y 180 segundos. Si te quedas sin tiempo o sin vidas, pierdes la partida.",
-                22,
-                FontStyle.Normal,
-                TextAnchor.UpperLeft,
-                new Color(0.82f, 0.9f, 1f));
+                "Tienes 3 vidas y 180 segundos. Si te quedas sin tiempo o sin vidas, pierdes la partida.";
+            bodyText.fontSize = 22;
+            bodyText.fontStyle = FontStyle.Normal;
+            bodyText.alignment = TextAnchor.UpperLeft;
+            bodyText.color = new Color(0.82f, 0.9f, 1f);
+            bodyText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            bodyText.verticalOverflow = VerticalWrapMode.Truncate;
+            bodyText.resizeTextForBestFit = true;
+            bodyText.resizeTextMinSize = 16;
+            bodyText.resizeTextMaxSize = 22;
 
-            var bodyRect = panel.transform.Find("InstructionsBody").GetComponent<RectTransform>();
+            var bodyRect = bodyObject.GetComponent<RectTransform>();
             bodyRect.anchorMin = new Vector2(0.5f, 0.5f);
             bodyRect.anchorMax = new Vector2(0.5f, 0.5f);
             bodyRect.sizeDelta = new Vector2(920f, 420f);
-            bodyRect.anchoredPosition = new Vector2(0f, -10f);
+            bodyRect.anchoredPosition = new Vector2(0f, -8f);
 
             var closeButton = CreateMenuButton(panel.transform, "Cerrar", new Color(0.16f, 0.33f, 0.5f), null);
             closeButton.name = "CloseButton";
-            SetAnchoredRect(closeButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.11f), new Vector2(280f, 64f));
+            SetAnchoredRect(closeButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.07f), new Vector2(280f, 60f));
             panel.SetActive(false);
             return panel;
         }
 
         private static GameObject CreateMenuButton(Transform parent, string label, Color color, UnityEngine.Events.UnityAction onClick)
         {
-            var buttonObject = new GameObject(label + "Button", typeof(RectTransform), typeof(Image), typeof(Button));
+            var buttonObject = new GameObject(label + "Button", typeof(RectTransform), typeof(Image), typeof(Button), typeof(Outline));
             buttonObject.transform.SetParent(parent, false);
 
             var rectTransform = buttonObject.GetComponent<RectTransform>();
@@ -1072,11 +1236,15 @@ namespace LightChasePrototype.UI
             var image = buttonObject.GetComponent<Image>();
             image.color = color;
 
+            var outline = buttonObject.GetComponent<Outline>();
+            outline.effectColor = new Color(1f, 1f, 1f, 0.1f);
+            outline.effectDistance = new Vector2(1.5f, -1.5f);
+
             var button = buttonObject.GetComponent<Button>();
             var colors = button.colors;
             colors.normalColor = color;
-            colors.highlightedColor = color * 1.15f;
-            colors.pressedColor = color * 0.9f;
+            colors.highlightedColor = color * 1.2f;
+            colors.pressedColor = color * 0.85f;
             colors.selectedColor = color * 1.1f;
             colors.disabledColor = new Color(0.3f, 0.3f, 0.3f, 0.8f);
             button.colors = colors;
@@ -1086,7 +1254,7 @@ namespace LightChasePrototype.UI
                 button.onClick.AddListener(onClick);
             }
 
-            CreateText("Label", buttonObject.transform, label.ToUpperInvariant(), 28, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+            CreateStyledText("Label", buttonObject.transform, label.ToUpperInvariant(), 28, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
             Stretch(buttonObject.transform.Find("Label").GetComponent<RectTransform>());
             return buttonObject;
         }
@@ -1113,6 +1281,85 @@ namespace LightChasePrototype.UI
             text.color = color;
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
             text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.resizeTextForBestFit = true;
+            text.resizeTextMinSize = Mathf.Max(14, fontSize - 10);
+            text.resizeTextMaxSize = fontSize;
+        }
+
+        private static void CreateStyledText(string name, Transform parent, string content, int fontSize, FontStyle fontStyle, TextAnchor alignment, Color color)
+        {
+            var textObject = new GameObject(name, typeof(RectTransform), typeof(Text), typeof(Outline), typeof(Shadow));
+            textObject.transform.SetParent(parent, false);
+
+            var text = textObject.GetComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.text = content;
+            text.fontSize = fontSize;
+            text.fontStyle = fontStyle;
+            text.alignment = alignment;
+            text.color = color;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.resizeTextForBestFit = true;
+            text.resizeTextMinSize = Mathf.Max(14, fontSize - 12);
+            text.resizeTextMaxSize = fontSize;
+
+            var outline = textObject.GetComponent<Outline>();
+            outline.effectColor = new Color(0f, 0f, 0f, 0.7f);
+            outline.effectDistance = new Vector2(1.5f, -1.5f);
+
+            var shadow = textObject.GetComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.3f);
+            shadow.effectDistance = new Vector2(0f, -3f);
+        }
+
+        private static GameObject CreateTextWithObject(string name, Transform parent, string content, int fontSize, FontStyle fontStyle, TextAnchor alignment, Color color)
+        {
+            var textObject = new GameObject(name, typeof(RectTransform), typeof(Text));
+            textObject.transform.SetParent(parent, false);
+
+            var text = textObject.GetComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.text = content;
+            text.fontSize = fontSize;
+            text.fontStyle = fontStyle;
+            text.alignment = alignment;
+            text.color = color;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.resizeTextForBestFit = true;
+            text.resizeTextMinSize = Mathf.Max(14, fontSize - 10);
+            text.resizeTextMaxSize = fontSize;
+            return textObject;
+        }
+
+        private static GameObject CreateStyledTextWithObject(string name, Transform parent, string content, int fontSize, FontStyle fontStyle, TextAnchor alignment, Color color)
+        {
+            var textObject = new GameObject(name, typeof(RectTransform), typeof(Text), typeof(Outline), typeof(Shadow));
+            textObject.transform.SetParent(parent, false);
+
+            var text = textObject.GetComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.text = content;
+            text.fontSize = fontSize;
+            text.fontStyle = fontStyle;
+            text.alignment = alignment;
+            text.color = color;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.resizeTextForBestFit = true;
+            text.resizeTextMinSize = Mathf.Max(14, fontSize - 12);
+            text.resizeTextMaxSize = fontSize;
+
+            var outline = textObject.GetComponent<Outline>();
+            outline.effectColor = new Color(0f, 0f, 0f, 0.7f);
+            outline.effectDistance = new Vector2(1.5f, -1.5f);
+
+            var shadow = textObject.GetComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.3f);
+            shadow.effectDistance = new Vector2(0f, -3f);
+
+            return textObject;
         }
 
         private static void Stretch(RectTransform rectTransform)

@@ -28,6 +28,10 @@ namespace LightChasePrototype
         [SerializeField] private float maximumWarningPitch = 1.35f;
         [SerializeField] private Renderer enemyRenderer;
 
+        private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
+
+        private MaterialPropertyBlock _materialPropertyBlock;
+
         private NavMeshAgent _agent;
         private AudioSource _warningAudioSource;
         private PlayerLightState _playerLightState;
@@ -43,6 +47,8 @@ namespace LightChasePrototype
             _agent.speed = baseMoveSpeed;
             _warningAudioSource = GetComponent<AudioSource>();
             ConfigureWarningAudio();
+
+            _materialPropertyBlock = new MaterialPropertyBlock();
         }
 
         public void ConfigureRenderer(Renderer assignedRenderer)
@@ -94,18 +100,18 @@ namespace LightChasePrototype
 
             UpdateWarningAudio(warningLevel, isChasing);
 
+            // Keep the model textures intact: drive only emission via property block.
             if (enemyRenderer != null)
             {
-                enemyRenderer.material.color = isChasing
-                    ? new Color(1f, 0.35f, 0.2f)
-                    : isAlerted
-                        ? new Color(1f, 0.82f, 0.28f)
-                        : new Color(0.3f, 0.3f, 0.38f);
-                enemyRenderer.material.SetColor("_EmissionColor", isChasing
-                    ? new Color(1.2f, 0.2f, 0.1f)
-                    : isAlerted
-                        ? new Color(0.85f, 0.6f, 0.08f)
-                        : new Color(0.05f, 0.05f, 0.05f));
+                enemyRenderer.GetPropertyBlock(_materialPropertyBlock);
+                _materialPropertyBlock.SetColor(
+                    EmissionColorId,
+                    isChasing
+                        ? new Color(1.2f, 0.2f, 0.1f)
+                        : isAlerted
+                            ? new Color(0.85f, 0.6f, 0.08f)
+                            : new Color(0.05f, 0.05f, 0.05f));
+                enemyRenderer.SetPropertyBlock(_materialPropertyBlock);
             }
 
             if (!isChasing)

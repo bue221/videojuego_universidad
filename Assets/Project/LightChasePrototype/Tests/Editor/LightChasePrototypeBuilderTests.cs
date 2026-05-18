@@ -15,7 +15,14 @@ public class LightChasePrototypeBuilderTests
 
         var scene = EditorSceneManager.GetActiveScene();
         Assert.That(scene.path, Is.EqualTo(PrototypeScenePath));
-        Assert.That(GameObject.Find("LightHunter"), Is.Not.Null);
+        var enemy = GameObject.Find("LightHunter");
+        Assert.That(enemy, Is.Not.Null);
+        Assert.That(enemy.transform.Find("Enemigo_01_Model"), Is.Not.Null);
+
+        var enemyRenderer = enemy.GetComponentInChildren<Renderer>();
+        Assert.That(enemyRenderer, Is.Not.Null);
+        Assert.That(enemyRenderer.sharedMaterial, Is.Not.Null);
+        Assert.That(enemyRenderer.sharedMaterial.GetTexture("_BaseMap"), Is.Not.Null);
         Assert.That(GameObject.Find("ExitPortal"), Is.Not.Null);
         Assert.That(GameObject.Find("Navigation"), Is.Not.Null);
         Assert.That(GameObject.Find("GameplayHUD"), Is.Null);

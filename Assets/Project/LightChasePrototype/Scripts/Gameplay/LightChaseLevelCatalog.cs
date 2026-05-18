@@ -43,6 +43,34 @@ namespace LightChasePrototype
 
         public static string DefaultSceneName => Options[0].SceneName;
 
+        public static bool TryGetNextLevelSceneName(string currentSceneName, out string nextSceneName)
+        {
+            nextSceneName = null;
+            if (string.IsNullOrWhiteSpace(currentSceneName))
+            {
+                return false;
+            }
+
+            for (var i = 0; i < Options.Length; i++)
+            {
+                if (!string.Equals(Options[i].SceneName, currentSceneName, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var nextIndex = i + 1;
+                if (nextIndex >= Options.Length)
+                {
+                    return false;
+                }
+
+                nextSceneName = Options[nextIndex].SceneName;
+                return !string.IsNullOrWhiteSpace(nextSceneName);
+            }
+
+            return false;
+        }
+
         public static void SelectLevel(string levelId)
         {
             var resolvedLevelId = IsValidLevelId(levelId) ? levelId : PrototypeLevelId;

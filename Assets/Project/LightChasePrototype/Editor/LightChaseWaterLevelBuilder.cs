@@ -15,22 +15,38 @@ public static class LightChaseWaterLevelBuilder
     private const string WaterLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level03.unity";
     private const string PlayerPrefabPath = "Assets/ThirdParty/StarterAssets/ThirdPersonController/Prefabs/PlayerArmature.prefab";
     private const string CameraPrefabPath = "Assets/ThirdParty/StarterAssets/ThirdPersonController/Prefabs/PlayerFollowCamera.prefab";
+    private const string Enemy01ModelPath = "Assets/MeshyImports/Enemigo_01/Meshy_AI_El_Director_biped_Animation_Walking_withSkin.fbx";
+    private const string Enemy01MaterialPath = "Assets/MeshyImports/Enemigo_01/Material_1.mat";
     private const string ScenarioConvertedModelPath = "Assets/Project/LightChasePrototype/Resources/ModelosEscenarios/escenario_3_converted.fbx";
     private const string ScenarioModelPath = "Assets/Project/LightChasePrototype/Resources/ModelosEscenarios/escenario_3.glb";
     private const string ImportedScenarioModelPath = "Assets/MeshyImports/LightChaseLevel03/escenario_3_runtime.glb";
+    private const string TextureFolder = "Assets/Project/LightChasePrototype/Resources/ModelosEscenarios/Textures";
     private const float TargetEnvironmentFootprint = 72f;
+    private const string PrototypeLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype.unity";
+    private const string NatureLevelScenePath = "Assets/Project/LightChasePrototype/Scenes/LightChasePrototype_Level02.unity";
 
     [MenuItem("Tools/Prototype/Build Light Chase Level 03")]
     public static void BuildLevel()
+    {
+        BuildLevelInternal(preserveExistingScenarioEnvironment: true);
+    }
+
+    [MenuItem("Tools/Prototype/Build Light Chase Level 03 (Full Rebuild)")]
+    public static void BuildLevelFullRebuild()
+    {
+        BuildLevelInternal(preserveExistingScenarioEnvironment: false);
+    }
+
+    private static void BuildLevelInternal(bool preserveExistingScenarioEnvironment)
     {
         EnsureSceneFolderExists();
         EnsureWaterLevelSceneExists();
         var scene = EditorSceneManager.OpenScene(WaterLevelScenePath, OpenSceneMode.Single);
 
-        ClearPreviousGeneratedContent();
+        ClearPreviousGeneratedContent(preserveExistingScenarioEnvironment);
         ConfigureAtmosphere();
 
-        var environment = BuildScenarioEnvironment();
+        var environment = BuildScenarioEnvironment(preserveExistingScenarioEnvironment);
         var environmentBounds = CalculateEnvironmentBounds(environment);
         ConfigureLevelManager();
         var player = FindOrCreatePlayer(environmentBounds);
@@ -42,7 +58,7 @@ public static class LightChaseWaterLevelBuilder
         ConfigureStars(environmentBounds);
         ConfigureExit(environmentBounds);
         ConfigureNavigation();
-        EnsureSceneIncludedInBuildSettings(WaterLevelScenePath);
+        EnsureGameplayScenesIncludedInBuildSettings();
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
@@ -72,10 +88,14 @@ public static class LightChaseWaterLevelBuilder
         AssetDatabase.Refresh();
     }
 
-    private static void ClearPreviousGeneratedContent()
+    private static void ClearPreviousGeneratedContent(bool preserveExistingScenarioEnvironment)
     {
         DestroyIfExists("Environment");
-        DestroyIfExists("Scenario3Environment");
+        if (!preserveExistingScenarioEnvironment)
+        {
+            DestroyIfExists("Scenario3Environment");
+        }
+
         DestroyIfExists("Scenario3FallbackGround");
         DestroyIfExists("Collectibles");
         DestroyIfExists("Navigation");
@@ -126,8 +146,19 @@ public static class LightChaseWaterLevelBuilder
         }
     }
 
-    private static GameObject BuildScenarioEnvironment()
+    private static GameObject BuildScenarioEnvironment(bool preserveExistingScenarioEnvironment)
     {
+        if (preserveExistingScenarioEnvironment)
+        {
+            var existingEnvironment = GameObject.Find("Scenario3Environment");
+            if (existingEnvironment != null)
+            {
+                EnsureRenderMeshesHaveColliders(existingEnvironment);
+                ApplyScenarioMaterial(existingEnvironment);
+                return existingEnvironment;
+            }
+        }
+
         var scenarioPrefab = LoadScenarioPrefab();
         if (scenarioPrefab == null)
         {
@@ -136,20 +167,49 @@ public static class LightChaseWaterLevelBuilder
         }
 
         var environment = PrefabUtility.InstantiatePrefab(scenarioPrefab) as GameObject;
+        if (environment == null)
+        {
+            environment = Object.Instantiate(scenarioPrefab);
+        }
+
         environment.name = "Scenario3Environment";
 
+        var rendererCount = environment.GetComponentsInChildren<Renderer>().Length;
+        var meshFilterCount = environment.GetComponentsInChildren<MeshFilter>().Length;
+        Debug.Log($"[Level03] Instantiated '{scenarioPrefab.name}': renderers={rendererCount}, meshFilters={meshFilterCount}, localScale={environment.transform.localScale}");
+
         var initialBounds = CalculateEnvironmentBounds(environment);
+        var meshBounds = CalculateMeshFilterBounds(environment);
         var currentFootprint = Mathf.Max(initialBounds.size.x, initialBounds.size.z);
+        var meshFootprint = Mathf.Max(meshBounds.size.x, meshBounds.size.z);
+        Debug.Log($"[Level03] Renderer bounds: size={initialBounds.size}, footprint={currentFootprint:F3}");
+        Debug.Log($"[Level03] MeshFilter bounds: size={meshBounds.size}, footprint={meshFootprint:F3}");
+
+        if (currentFootprint < 0.01f)
+        {
+            Debug.LogWarning("[Level03] Renderer footprint near zero — using MeshFilter fallback.");
+            initialBounds = meshBounds;
+            currentFootprint = meshFootprint;
+        }
+
         if (currentFootprint > 0.01f)
         {
             var uniformScale = TargetEnvironmentFootprint / currentFootprint;
             environment.transform.localScale = Vector3.one * uniformScale;
+            Debug.Log($"[Level03] Applied scale: {uniformScale:F3} (target={TargetEnvironmentFootprint})");
         }
 
         var scaledBounds = CalculateEnvironmentBounds(environment);
+        if (scaledBounds.size.sqrMagnitude < 1f)
+        {
+            scaledBounds = CalculateMeshFilterBounds(environment);
+        }
+
         environment.transform.position += new Vector3(-scaledBounds.center.x, -scaledBounds.min.y, -scaledBounds.center.z);
+        Debug.Log($"[Level03] Final bounds: size={scaledBounds.size}, position={environment.transform.position}");
 
         EnsureRenderMeshesHaveColliders(environment);
+        ApplyScenarioMaterial(environment);
         return environment;
     }
 
@@ -246,6 +306,38 @@ public static class LightChaseWaterLevelBuilder
         return bounds;
     }
 
+    private static Bounds CalculateMeshFilterBounds(GameObject root)
+    {
+        var meshFilters = root.GetComponentsInChildren<MeshFilter>();
+        if (meshFilters.Length == 0)
+        {
+            return new Bounds(root.transform.position, Vector3.one * 10f);
+        }
+
+        var combined = new Bounds();
+        var first = true;
+        foreach (var filter in meshFilters)
+        {
+            if (filter.sharedMesh == null) continue;
+            var meshBounds = filter.sharedMesh.bounds;
+            var worldCenter = filter.transform.TransformPoint(meshBounds.center);
+            var worldSize = Vector3.Scale(meshBounds.size, filter.transform.lossyScale);
+            var worldBounds = new Bounds(worldCenter, worldSize);
+
+            if (first)
+            {
+                combined = worldBounds;
+                first = false;
+            }
+            else
+            {
+                combined.Encapsulate(worldBounds);
+            }
+        }
+
+        return first ? new Bounds(root.transform.position, Vector3.one * 10f) : combined;
+    }
+
     private static PrototypeLevelManager ConfigureLevelManager()
     {
         var manager = Object.FindAnyObjectByType<PrototypeLevelManager>();
@@ -321,19 +413,12 @@ public static class LightChaseWaterLevelBuilder
 
     private static void ConfigureEnemy(Bounds environmentBounds)
     {
-        var enemyObject = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-        enemyObject.name = "LightHunter";
-        enemyObject.transform.position = BuildGroundPoint(environmentBounds, 0.52f, 0.5f, 0.9f);
-        enemyObject.transform.localScale = new Vector3(1.2f, 1.4f, 1.2f);
+        var groundPoint = BuildGroundPoint(environmentBounds, 0.52f, 0.5f, 0f);
+        var enemyObject = CreateEnemyRoot("LightHunter", groundPoint);
+        AlignBaseToY(enemyObject, groundPoint.y);
+        enemyObject.transform.position += Vector3.up * 0.02f;
 
-        var renderer = enemyObject.GetComponent<Renderer>();
-        if (renderer != null)
-        {
-            renderer.sharedMaterial = CreateLitMaterial(
-                "WaterLevelEnemy",
-                new Color(0.36f, 0.24f, 0.2f),
-                new Color(0.1f, 0.05f, 0.05f));
-        }
+        var renderer = enemyObject.GetComponentInChildren<Renderer>();
 
         var agent = enemyObject.AddComponent<NavMeshAgent>();
         agent.angularSpeed = 240f;
@@ -341,10 +426,123 @@ public static class LightChaseWaterLevelBuilder
         agent.stoppingDistance = 1.35f;
 
         var enemy = enemyObject.AddComponent<EnemyLightSeeker>();
-        if (renderer != null)
+        enemy.ConfigureRenderer(renderer);
+    }
+
+    private static GameObject CreateEnemyRoot(string objectName, Vector3 position)
+    {
+        var root = new GameObject(objectName);
+        root.transform.position = position;
+
+        var modelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(Enemy01ModelPath);
+        if (modelPrefab != null)
         {
-            enemy.ConfigureRenderer(renderer);
+            var modelInstance = PrefabUtility.InstantiatePrefab(modelPrefab) as GameObject;
+            if (modelInstance == null)
+            {
+                modelInstance = Object.Instantiate(modelPrefab);
+            }
+
+            modelInstance.name = "Enemigo_01_Model";
+            modelInstance.transform.SetParent(root.transform, false);
+            ApplyEnemy01Material(modelInstance);
+            NormalizeModelHeight(modelInstance.transform, 2.2f);
+            return root;
         }
+
+        var fallback = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        fallback.name = "FallbackEnemy";
+        fallback.transform.SetParent(root.transform, false);
+        fallback.transform.localScale = new Vector3(1.2f, 1.4f, 1.2f);
+        return root;
+    }
+
+    private static void ApplyEnemy01Material(GameObject modelInstance)
+    {
+        if (modelInstance == null)
+        {
+            return;
+        }
+
+        var material = AssetDatabase.LoadAssetAtPath<Material>(Enemy01MaterialPath);
+        if (material == null)
+        {
+            return;
+        }
+
+        foreach (var renderer in modelInstance.GetComponentsInChildren<Renderer>(true))
+        {
+            if (renderer == null)
+            {
+                continue;
+            }
+
+            var shared = renderer.sharedMaterials;
+            if (shared == null || shared.Length == 0)
+            {
+                renderer.sharedMaterial = material;
+                continue;
+            }
+
+            for (var i = 0; i < shared.Length; i++)
+            {
+                shared[i] = material;
+            }
+
+            renderer.sharedMaterials = shared;
+        }
+    }
+
+    private static void NormalizeModelHeight(Transform modelRoot, float targetHeight)
+    {
+        if (modelRoot == null)
+        {
+            return;
+        }
+
+        var renderers = modelRoot.GetComponentsInChildren<Renderer>();
+        if (renderers == null || renderers.Length == 0)
+        {
+            return;
+        }
+
+        var bounds = renderers[0].bounds;
+        for (var i = 1; i < renderers.Length; i++)
+        {
+            bounds.Encapsulate(renderers[i].bounds);
+        }
+
+        var height = bounds.size.y;
+        if (height <= 0.01f)
+        {
+            return;
+        }
+
+        var factor = targetHeight / height;
+        modelRoot.localScale *= factor;
+    }
+
+    private static void AlignBaseToY(GameObject root, float targetY)
+    {
+        if (root == null)
+        {
+            return;
+        }
+
+        var renderers = root.GetComponentsInChildren<Renderer>();
+        if (renderers == null || renderers.Length == 0)
+        {
+            return;
+        }
+
+        var bounds = renderers[0].bounds;
+        for (var i = 1; i < renderers.Length; i++)
+        {
+            bounds.Encapsulate(renderers[i].bounds);
+        }
+
+        var delta = targetY - bounds.min.y;
+        root.transform.position += Vector3.up * delta;
     }
 
     private static void ConfigureStars(Bounds environmentBounds)
@@ -448,6 +646,93 @@ public static class LightChaseWaterLevelBuilder
             Mathf.Lerp(environmentBounds.min.z, environmentBounds.max.z, zT));
     }
 
+    private static void EnsureTextureImportSettings()
+    {
+        var normalPath = $"{TextureFolder}/escenario_3_normalMap.jpg";
+        if (AssetImporter.GetAtPath(normalPath) is TextureImporter normalImporter)
+        {
+            if (normalImporter.textureType != TextureImporterType.NormalMap)
+            {
+                normalImporter.textureType = TextureImporterType.NormalMap;
+                normalImporter.SaveAndReimport();
+            }
+        }
+
+        var metalPath = $"{TextureFolder}/escenario_3_metallicRoughness.jpg";
+        if (AssetImporter.GetAtPath(metalPath) is TextureImporter metalImporter)
+        {
+            if (metalImporter.sRGBTexture)
+            {
+                metalImporter.sRGBTexture = false;
+                metalImporter.SaveAndReimport();
+            }
+        }
+    }
+
+    private static void ApplyScenarioMaterial(GameObject environment)
+    {
+        AssetDatabase.Refresh();
+        EnsureTextureImportSettings();
+
+        var shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null)
+        {
+            Debug.LogWarning("URP/Lit shader not found. Scenario materials will use defaults.");
+            return;
+        }
+
+        var material = new Material(shader) { name = "Scenario3_Lit" };
+
+        var baseColor = AssetDatabase.LoadAssetAtPath<Texture2D>($"{TextureFolder}/escenario_3_baseColor.jpg");
+        var metalRough = AssetDatabase.LoadAssetAtPath<Texture2D>($"{TextureFolder}/escenario_3_metallicRoughness.jpg");
+        var normalMap = AssetDatabase.LoadAssetAtPath<Texture2D>($"{TextureFolder}/escenario_3_normalMap.jpg");
+        var emission = AssetDatabase.LoadAssetAtPath<Texture2D>($"{TextureFolder}/escenario_3_emission.jpg");
+
+        if (baseColor != null)
+        {
+            material.SetTexture("_BaseMap", baseColor);
+            material.SetColor("_BaseColor", Color.white);
+        }
+
+        if (metalRough != null)
+        {
+            material.SetTexture("_MetallicGlossMap", metalRough);
+            material.SetFloat("_Metallic", 1f);
+            material.SetFloat("_Smoothness", 0.5f);
+        }
+
+        if (normalMap != null)
+        {
+            material.EnableKeyword("_NORMALMAP");
+            material.SetTexture("_BumpMap", normalMap);
+            material.SetFloat("_BumpScale", 1f);
+        }
+
+        if (emission != null)
+        {
+            material.EnableKeyword("_EMISSION");
+            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            material.SetTexture("_EmissionMap", emission);
+            material.SetColor("_EmissionColor", Color.white);
+        }
+
+        var renderers = environment.GetComponentsInChildren<Renderer>();
+        foreach (var renderer in renderers)
+        {
+            var materials = renderer.sharedMaterials;
+            for (var i = 0; i < materials.Length; i++)
+            {
+                materials[i] = material;
+            }
+
+            renderer.sharedMaterials = materials;
+        }
+
+        var textureCount = (baseColor != null ? 1 : 0) + (metalRough != null ? 1 : 0)
+            + (normalMap != null ? 1 : 0) + (emission != null ? 1 : 0);
+        Debug.Log($"Scenario3 material applied to {renderers.Length} renderers with {textureCount}/4 textures.");
+    }
+
     private static Material CreateLitMaterial(string materialName, Color baseColor, Color emissionColor)
     {
         var shader = Shader.Find("Universal Render Pipeline/Lit");
@@ -484,24 +769,39 @@ public static class LightChaseWaterLevelBuilder
         return component;
     }
 
-    private static void EnsureSceneIncludedInBuildSettings(string scenePath)
+    private static void EnsureGameplayScenesIncludedInBuildSettings()
     {
-        var existingScenes = EditorBuildSettings.scenes;
-        foreach (var existingScene in existingScenes)
+        var requiredScenes = new[]
         {
-            if (existingScene.path == scenePath)
+            PrototypeLevelScenePath,
+            NatureLevelScenePath,
+            WaterLevelScenePath
+        };
+
+        var existingScenes = EditorBuildSettings.scenes;
+        var updatedScenes = new System.Collections.Generic.List<EditorBuildSettingsScene>(existingScenes);
+
+        foreach (var scenePath in requiredScenes)
+        {
+            var exists = false;
+            for (var i = 0; i < updatedScenes.Count; i++)
             {
-                return;
+                if (updatedScenes[i].path != scenePath)
+                {
+                    continue;
+                }
+
+                updatedScenes[i].enabled = true;
+                exists = true;
+                break;
+            }
+
+            if (!exists)
+            {
+                updatedScenes.Add(new EditorBuildSettingsScene(scenePath, true));
             }
         }
 
-        var updatedScenes = new EditorBuildSettingsScene[existingScenes.Length + 1];
-        for (var i = 0; i < existingScenes.Length; i++)
-        {
-            updatedScenes[i] = existingScenes[i];
-        }
-
-        updatedScenes[^1] = new EditorBuildSettingsScene(scenePath, true);
-        EditorBuildSettings.scenes = updatedScenes;
+        EditorBuildSettings.scenes = updatedScenes.ToArray();
     }
 }

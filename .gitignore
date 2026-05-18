@@ -126,3 +126,5 @@ InitTestScene*.unity*
 *.svd
 
 .DS_Store
+# Local Pi runtime state
+.atl/

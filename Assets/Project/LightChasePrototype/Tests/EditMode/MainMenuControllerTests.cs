@@ -12,6 +12,7 @@ public class MainMenuControllerTests
     private GameObject _instructionsPanel;
     private GameObject _menuCanvas;
     private GameObject _mainActionsPanel;
+    private GameObject _levelSelectionPanel;
     private MainMenuController _controller;
 
     [SetUp]
@@ -24,6 +25,9 @@ public class MainMenuControllerTests
         _mainActionsPanel.transform.SetParent(_root.transform);
         _instructionsPanel = new GameObject("InstructionsPanel");
         _instructionsPanel.transform.SetParent(_root.transform);
+        _levelSelectionPanel = new GameObject("LevelSelectionPanel");
+        _levelSelectionPanel.transform.SetParent(_root.transform);
+        _levelSelectionPanel.SetActive(false);
         var avatarPanel = new GameObject("AvatarSelectionPanel");
         avatarPanel.transform.SetParent(_root.transform);
         avatarPanel.SetActive(false);
@@ -39,6 +43,8 @@ public class MainMenuControllerTests
             ?.SetValue(_controller, _menuCanvas.AddComponent<CanvasGroup>());
         controllerType.GetField("mainActionsPanel", BindingFlags.NonPublic | BindingFlags.Instance)
             ?.SetValue(_controller, _mainActionsPanel);
+        controllerType.GetField("levelSelectionPanel", BindingFlags.NonPublic | BindingFlags.Instance)
+            ?.SetValue(_controller, _levelSelectionPanel);
         controllerType.GetField("avatarSelectionPanel", BindingFlags.NonPublic | BindingFlags.Instance)
             ?.SetValue(_controller, avatarPanel);
         controllerType.GetField("avatarDescriptionText", BindingFlags.NonPublic | BindingFlags.Instance)
@@ -59,6 +65,11 @@ public class MainMenuControllerTests
         if (_mainActionsPanel != null)
         {
             Object.DestroyImmediate(_mainActionsPanel);
+        }
+
+        if (_levelSelectionPanel != null)
+        {
+            Object.DestroyImmediate(_levelSelectionPanel);
         }
 
         var eventSystem = Object.FindAnyObjectByType<EventSystem>();
@@ -120,7 +131,7 @@ public class MainMenuControllerTests
     }
 
     [Test]
-    public void PlayGame_LoadsSelectedNatureLevelWhenChosen()
+    public void PlayGame_AlwaysStartsOnLevel1FromMenu()
     {
         string loadedScene = null;
         _controller.ConfigureActionsForTests(sceneName => loadedScene = sceneName, null, () => "Boot");
@@ -129,34 +140,7 @@ public class MainMenuControllerTests
         _controller.PlayGame();
         _controller.PlayGame();
 
-        Assert.That(loadedScene, Is.EqualTo("LightChasePrototype_Level02"));
-    }
-
-    [Test]
-    public void SelectLevel_UpdatesSelectedSceneName()
-    {
-        _controller.SelectLevel(LightChaseLevelCatalog.NatureLevelId);
-
-        Assert.That(_controller.SelectedLevelSceneName, Is.EqualTo("LightChasePrototype_Level02"));
-    }
-
-    [Test]
-    public void SelectLevel_UpdatesSelectedSceneNameForWaterRoute()
-    {
-        _controller.SelectLevel(LightChaseLevelCatalog.WaterLevelId);
-
-        Assert.That(_controller.SelectedLevelSceneName, Is.EqualTo("LightChasePrototype_Level03"));
-    }
-
-    [Test]
-    public void ShowMenu_PreservesExplicitSelectedLevel()
-    {
-        _controller.ConfigureActionsForTests(null, null, () => "LightChasePrototype");
-        _controller.SelectLevel(LightChaseLevelCatalog.NatureLevelId);
-
-        _controller.ShowMenu();
-
-        Assert.That(_controller.SelectedLevelSceneName, Is.EqualTo("LightChasePrototype_Level02"));
+        Assert.That(loadedScene, Is.EqualTo("LightChasePrototype"));
     }
 
     [Test]
@@ -167,9 +151,23 @@ public class MainMenuControllerTests
 
         _controller.PlayGame();
 
+        Assert.That(_controller.LevelSelectionVisible, Is.False);
         Assert.That(_controller.AvatarSelectionVisible, Is.True);
         Assert.That(_mainActionsPanel.activeSelf, Is.False);
         Assert.That(loadedScene, Is.Null);
+    }
+
+    [Test]
+    public void PlayGame_SecondCallLoadsScene()
+    {
+        string loadedScene = null;
+        _controller.ConfigureActionsForTests(sceneName => loadedScene = sceneName, null, () => "Boot");
+
+        _controller.PlayGame();
+        _controller.PlayGame();
+
+        Assert.That(_controller.LevelSelectionVisible, Is.False);
+        Assert.That(loadedScene, Is.EqualTo("LightChasePrototype"));
     }
 
     [Test]
@@ -192,12 +190,13 @@ public class MainMenuControllerTests
     }
 
     [Test]
-    public void PlayGame_InGameplayScene_HidesMenuWithoutLoadingScene()
+    public void PlayGame_InGameplayScene_ResumesAfterFullSelectionFlow()
     {
         string loadedScene = null;
         _controller.ShowMenu();
         _controller.ConfigureActionsForTests(sceneName => loadedScene = sceneName, null, () => "LightChasePrototype");
 
+        _controller.PlayGame();
         _controller.PlayGame();
 
         Assert.That(loadedScene, Is.Null);
@@ -213,6 +212,19 @@ public class MainMenuControllerTests
         _controller.ShowInstructions();
 
         Assert.That(_controller.AvatarSelectionVisible, Is.False);
+        Assert.That(_controller.LevelSelectionVisible, Is.False);
+        Assert.That(_controller.InstructionsVisible, Is.True);
+        Assert.That(_mainActionsPanel.activeSelf, Is.False);
+    }
+
+    [Test]
+    public void ShowInstructions_HidesLevelSelectionPanel()
+    {
+        _controller.ShowLevelSelection();
+
+        _controller.ShowInstructions();
+
+        Assert.That(_controller.LevelSelectionVisible, Is.False);
         Assert.That(_controller.InstructionsVisible, Is.True);
         Assert.That(_mainActionsPanel.activeSelf, Is.False);
     }
@@ -280,7 +292,24 @@ public class MainMenuControllerTests
     }
 
     [Test]
-    public void EnsureMenuExists_ShowsOnlyPlayAndExitInInitialMainActions()
+    public void EnsureMenuExists_ShowsGameTitleAndSubtitle()
+    {
+        Object.DestroyImmediate(_root);
+        Object.DestroyImmediate(_menuCanvas);
+        _root = null;
+        _menuCanvas = null;
+
+        MainMenuController.EnsureMenuExists();
+
+        var gameTitle = GameObject.Find("GameTitle").GetComponent<Text>();
+        var subtitle = GameObject.Find("Subtitle").GetComponent<Text>();
+
+        Assert.That(gameTitle.text, Is.EqualTo("CORRE CORRE QUE TE ATRAPO"));
+        Assert.That(subtitle.text, Is.EqualTo("Modelado 3D y videojuegos"));
+    }
+
+    [Test]
+    public void EnsureMenuExists_ShowsPlayInstructionsAndExitInInitialMainActions()
     {
         Object.DestroyImmediate(_root);
         Object.DestroyImmediate(_menuCanvas);
@@ -290,10 +319,12 @@ public class MainMenuControllerTests
         var createdMenu = MainMenuController.EnsureMenuExists();
 
         var buttonStack = GameObject.Find("ButtonStack").transform;
-        Assert.That(buttonStack.childCount, Is.EqualTo(2));
+        Assert.That(buttonStack.childCount, Is.EqualTo(3));
         Assert.That(buttonStack.GetChild(0).Find("Label").GetComponent<Text>().text, Is.EqualTo("JUGAR"));
-        Assert.That(buttonStack.GetChild(1).Find("Label").GetComponent<Text>().text, Is.EqualTo("SALIR"));
+        Assert.That(buttonStack.GetChild(1).Find("Label").GetComponent<Text>().text, Is.EqualTo("INSTRUCCIONES"));
+        Assert.That(buttonStack.GetChild(2).Find("Label").GetComponent<Text>().text, Is.EqualTo("SALIR"));
         Assert.That(createdMenu.transform.Find("InstructionsPanel").gameObject.activeSelf, Is.False);
         Assert.That(createdMenu.transform.Find("AvatarSelectionPanel").gameObject.activeSelf, Is.False);
+        Assert.That(createdMenu.transform.Find("LevelSelectionPanel").gameObject.activeSelf, Is.False);
     }
 }

@@ -7,12 +7,17 @@ namespace LightChasePrototype.UI
     public class GlobalUiController : MonoBehaviour
     {
         private const string RootObjectName = "GlobalUIRoot";
+        private const string MainMenuSceneName = "MainMenu";
+
+        [Header("Level Flow")]
+        [SerializeField] private float advanceToNextLevelDelaySeconds = 1.0f;
 
         [SerializeField] private MainMenuController mainMenuController;
         [SerializeField] private GameHudController gameHudController;
         [SerializeField] private string gameplaySceneName = LightChaseLevelCatalog.DefaultSceneName;
 
         private PrototypeLevelManager _levelManager;
+        private bool _advancingToNextLevel;
 
         public static GlobalUiController Instance { get; private set; }
 
@@ -107,6 +112,9 @@ namespace LightChasePrototype.UI
                 return;
             }
 
+            StopAllCoroutines();
+            _advancingToNextLevel = false;
+
             var levelManager = FindAnyObjectByType<PrototypeLevelManager>();
             Initialize(levelManager, scene.name);
         }
@@ -123,7 +131,8 @@ namespace LightChasePrototype.UI
                 return gameplaySceneName;
             }
 
-            return LightChaseLevelCatalog.SelectedLevel.SceneName;
+            // If we don't have a known gameplay scene name yet, default to Level 1.
+            return LightChaseLevelCatalog.DefaultSceneName;
         }
 
         private void CleanupLegacySceneUi()
@@ -160,6 +169,11 @@ namespace LightChasePrototype.UI
                 return;
             }
 
+            if (_levelManager.LevelCompleted)
+            {
+                TryAdvanceToNextLevel();
+            }
+
             if (_levelManager.GameOver)
             {
                 var title = _levelManager.TimerExpired
@@ -172,6 +186,43 @@ namespace LightChasePrototype.UI
             }
 
             UpdateHudVisibility(_levelManager);
+        }
+
+        private void TryAdvanceToNextLevel()
+        {
+            if (_advancingToNextLevel)
+            {
+                return;
+            }
+
+            var activeSceneName = SceneManager.GetActiveScene().name;
+            if (!LightChaseLevelCatalog.TryGetNextLevelSceneName(activeSceneName, out var nextSceneName))
+            {
+                // End of the prototype run: go back to menu.
+                mainMenuController.ShowMenu();
+                return;
+            }
+
+            _advancingToNextLevel = true;
+            StartCoroutine(AdvanceAfterDelay(nextSceneName));
+        }
+
+        private System.Collections.IEnumerator AdvanceAfterDelay(string nextSceneName)
+        {
+            var delay = Mathf.Max(0f, advanceToNextLevelDelaySeconds);
+            if (delay > 0f)
+            {
+                yield return new WaitForSeconds(delay);
+            }
+
+            // Prefer gameplay scenes; menu scene is just a fallback.
+            if (!string.IsNullOrWhiteSpace(nextSceneName))
+            {
+                SceneManager.LoadScene(nextSceneName);
+                yield break;
+            }
+
+            SceneManager.LoadScene(MainMenuSceneName);
         }
 
         private void UpdateHudVisibility(PrototypeLevelManager levelManager)

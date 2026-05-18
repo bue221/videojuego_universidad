@@ -40,11 +40,21 @@ namespace LightChasePrototype.UI
 
             if (canvasObject == null)
             {
-                canvasObject = new GameObject("GameplayHUD");
+                canvasObject = new GameObject("GameplayHUD", typeof(RectTransform));
                 if (parent != null)
                 {
                     canvasObject.transform.SetParent(parent, false);
                 }
+            }
+
+            if (parent != null)
+            {
+                var rt = canvasObject.GetComponent<RectTransform>();
+                if (rt == null) rt = canvasObject.AddComponent<RectTransform>();
+                rt.anchorMin = Vector2.zero;
+                rt.anchorMax = Vector2.one;
+                rt.offsetMin = Vector2.zero;
+                rt.offsetMax = Vector2.zero;
             }
 
             if (parent == null)
@@ -249,20 +259,20 @@ namespace LightChasePrototype.UI
         {
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
-            var livesPanel = CreateHudPanel(canvasTransform, "LivesPanel", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(34f, -34f), new Vector2(260f, 78f), LivesPanelColor);
-            var scorePanel = CreateHudPanel(canvasTransform, "ScorePanel", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -34f), new Vector2(320f, 78f), ScorePanelColor);
-            var timerPanel = CreateHudPanel(canvasTransform, "TimerPanel", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-34f, -34f), new Vector2(260f, 78f), TimerPanelColor);
-            var statusPanel = CreateHudPanel(canvasTransform, "StatusPanel", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 34f), new Vector2(1160f, 92f), StatusInfoColor);
+            var livesPanel = CreateHudPanel(canvasTransform, "LivesPanel", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -20f), new Vector2(260f, 72f), LivesPanelColor);
+            var scorePanel = CreateHudPanel(canvasTransform, "ScorePanel", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -20f), new Vector2(300f, 72f), ScorePanelColor);
+            var timerPanel = CreateHudPanel(canvasTransform, "TimerPanel", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-24f, -20f), new Vector2(260f, 72f), TimerPanelColor);
+            var statusPanel = CreateHudPanel(canvasTransform, "StatusPanel", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 24f), new Vector2(980f, 80f), StatusInfoColor);
 
-            var livesText = CreatePanelText(livesPanel.transform, "LivesText", font, 30, TextAnchor.MiddleCenter, HudTextColor);
-            var scoreText = CreatePanelText(scorePanel.transform, "ScoreText", font, 30, TextAnchor.MiddleCenter, HudTextColor);
-            var timerText = CreatePanelText(timerPanel.transform, "TimerText", font, 30, TextAnchor.MiddleCenter, HudTextColor);
-            var statusText = CreatePanelText(statusPanel.transform, "StatusText", font, 28, TextAnchor.MiddleCenter, HudTextColor);
+            var livesText = CreatePanelText(livesPanel.transform, "LivesText", font, 28, TextAnchor.MiddleCenter, HudTextColor);
+            var scoreText = CreatePanelText(scorePanel.transform, "ScoreText", font, 28, TextAnchor.MiddleCenter, HudTextColor);
+            var timerText = CreatePanelText(timerPanel.transform, "TimerText", font, 28, TextAnchor.MiddleCenter, HudTextColor);
+            var statusText = CreatePanelText(statusPanel.transform, "StatusText", font, 26, TextAnchor.MiddleCenter, HudTextColor);
             statusText.horizontalOverflow = HorizontalWrapMode.Wrap;
             statusText.verticalOverflow = VerticalWrapMode.Overflow;
             statusText.resizeTextForBestFit = true;
-            statusText.resizeTextMinSize = 20;
-            statusText.resizeTextMaxSize = 28;
+            statusText.resizeTextMinSize = 18;
+            statusText.resizeTextMaxSize = 26;
 
             return new HudReferences(
                 livesText,

@@ -43,6 +43,24 @@ public class LightChaseLevelCatalogTests
     }
 
     [Test]
+    public void TryGetNextLevelSceneName_ReturnsNatureLevelAfterPrototype()
+    {
+        var foundNext = LightChaseLevelCatalog.TryGetNextLevelSceneName("LightChasePrototype", out var nextSceneName);
+
+        Assert.That(foundNext, Is.True);
+        Assert.That(nextSceneName, Is.EqualTo("LightChasePrototype_Level02"));
+    }
+
+    [Test]
+    public void TryGetNextLevelSceneName_ReturnsFalseAfterLastLevel()
+    {
+        var foundNext = LightChaseLevelCatalog.TryGetNextLevelSceneName("LightChasePrototype_Level03", out var nextSceneName);
+
+        Assert.That(foundNext, Is.False);
+        Assert.That(nextSceneName, Is.Null);
+    }
+
+    [Test]
     public void SelectLevel_SwitchesToWaterLevel()
     {
         LightChaseLevelCatalog.SelectLevel(LightChaseLevelCatalog.WaterLevelId);
