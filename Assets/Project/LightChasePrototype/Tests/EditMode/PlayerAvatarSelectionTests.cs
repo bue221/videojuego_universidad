@@ -22,7 +22,7 @@ public class PlayerAvatarSelectionTests
         PlayerAvatarSelection.SelectAvatar(PlayerAvatarSelection.CapsuleAvatarId);
 
         Assert.That(PlayerAvatarSelection.SelectedAvatarId, Is.EqualTo(PlayerAvatarSelection.CapsuleAvatarId));
-        Assert.That(PlayerAvatarSelection.SelectedAvatar.DisplayName, Is.EqualTo("Capsula"));
+        Assert.That(PlayerAvatarSelection.SelectedAvatar.DisplayName, Is.EqualTo("Andres"));
     }
 
     [Test]

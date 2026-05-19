@@ -20,9 +20,9 @@ namespace LightChasePrototype
                 "PlayerAvatars/PlayerArmature"),
             new(
                 CapsuleAvatarId,
-                "Capsula",
-                "Avatar minimalista para una lectura mas abstracta del movimiento.",
-                "PlayerAvatars/PlayerCapsule")
+                "Andres",
+                "Avatar humano (Andres) con lectura mas personal del riesgo.",
+                "PlayerAvatars/PlayerAndres")
         };
 
         public static string SelectedAvatarId
@@ -63,7 +63,27 @@ namespace LightChasePrototype
 
         public static GameObject LoadPrefab(string avatarId)
         {
-            return Resources.Load<GameObject>(GetAvatar(avatarId).ResourcePath);
+            var option = GetAvatar(avatarId);
+            var prefab = Resources.Load<GameObject>(option.ResourcePath);
+            if (prefab != null)
+            {
+                return prefab;
+            }
+
+            Debug.LogWarning($"PlayerAvatarSelection: No se pudo cargar prefab desde Resources '{option.ResourcePath}' para avatarId='{avatarId}'.");
+
+            // Fail-safe: if Andres prefab wasn't built/imported yet, fall back to the capsule so gameplay still works.
+            if (string.Equals(avatarId, CapsuleAvatarId, StringComparison.Ordinal))
+            {
+                var fallback = Resources.Load<GameObject>("PlayerAvatars/PlayerCapsule");
+                if (fallback != null)
+                {
+                    Debug.LogWarning("PlayerAvatarSelection: usando fallback PlayerCapsule porque PlayerAndres no está disponible.");
+                    return fallback;
+                }
+            }
+
+            return null;
         }
 
         public static Sprite BuildAvatarPreviewSprite(string avatarId, int width = 512, int height = 512)

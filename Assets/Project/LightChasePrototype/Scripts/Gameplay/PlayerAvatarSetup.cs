@@ -88,6 +88,12 @@ namespace LightChasePrototype
         {
             var selectedPrefab = PlayerAvatarSelection.LoadSelectedPrefab();
             var existingPlayer = FindExistingPlayer();
+            // Defensive: if gameplay got paused by menus/overlays, restore time progression.
+            if (Time.timeScale <= 0f)
+            {
+                Time.timeScale = 1f;
+            }
+
             if (selectedPrefab == null)
             {
                 if (existingPlayer != null)
@@ -106,6 +112,9 @@ namespace LightChasePrototype
                 createdPlayer.name = selectedPrefab.name;
                 EnsureGameplayPresentation(createdPlayer);
                 BindCameraToPlayer(createdPlayer);
+                EnsurePlayerInputActive(createdPlayer);
+                EnsureCursorFlagsForPlayer(createdPlayer);
+                DebugSpawnState(createdPlayer, "created");
                 return createdPlayer;
             }
 
@@ -114,6 +123,9 @@ namespace LightChasePrototype
             {
                 EnsureGameplayPresentation(currentPlayer);
                 BindCameraToPlayer(currentPlayer);
+                EnsurePlayerInputActive(currentPlayer);
+                EnsureCursorFlagsForPlayer(currentPlayer);
+                DebugSpawnState(currentPlayer, "reused");
                 return currentPlayer;
             }
 
@@ -123,7 +135,143 @@ namespace LightChasePrototype
             Object.Destroy(currentPlayer);
             EnsureGameplayPresentation(replacementPlayer);
             BindCameraToPlayer(replacementPlayer);
+            EnsurePlayerInputActive(replacementPlayer);
+            EnsureCursorFlagsForPlayer(replacementPlayer);
+            DebugSpawnState(replacementPlayer, "replaced");
             return replacementPlayer;
+        }
+
+        private static void EnsurePlayerInputActive(GameObject player)
+        {
+            if (player == null)
+            {
+                return;
+            }
+
+            // Starter Assets + Input System should drive movement. If the input component got disabled,
+            // re-enable it and log actionable info for debugging.
+            var anyPlayerInput = player.GetComponent("UnityEngine.InputSystem.PlayerInput");
+            if (anyPlayerInput is Behaviour behaviour)
+            {
+                if (!behaviour.enabled)
+                {
+                    behaviour.enabled = true;
+                    Debug.LogWarning("PlayerAvatarSetup: PlayerInput estaba deshabilitado; lo reactivé.", player);
+                }
+
+                // Ensure action map is active even if PlayerInput was spawned after menu interactions.
+                var type = anyPlayerInput.GetType();
+                type.GetMethod("ActivateInput", System.Type.EmptyTypes)?.Invoke(anyPlayerInput, null);
+                type.GetMethod("SwitchCurrentActionMap", new[] { typeof(string) })?.Invoke(anyPlayerInput, new object[] { "Player" });
+
+                return;
+            }
+        }
+
+        private static void EnsureCursorFlagsForPlayer(GameObject player)
+        {
+            if (player == null)
+            {
+                return;
+            }
+
+            var starterInputs = FindComponentByFullName(player, "StarterAssets.StarterAssetsInputs") as Behaviour;
+            if (starterInputs == null)
+            {
+                return;
+            }
+
+            // Mirror "menu hidden" state.
+            SetBooleanFieldOrProperty(starterInputs, "cursorLocked", true);
+            SetBooleanFieldOrProperty(starterInputs, "cursorInputForLook", true);
+        }
+
+        private static void SetBooleanFieldOrProperty(object target, string memberName, bool value)
+        {
+            var type = target.GetType();
+            var field = type.GetField(memberName);
+            if (field != null && field.FieldType == typeof(bool))
+            {
+                field.SetValue(target, value);
+                return;
+            }
+
+            var property = type.GetProperty(memberName);
+            if (property != null && property.CanWrite && property.PropertyType == typeof(bool))
+            {
+                property.SetValue(target, value);
+            }
+        }
+
+        private static void DebugSpawnState(GameObject player, string mode)
+        {
+            if (player == null)
+            {
+                return;
+            }
+
+            // Keep this log low-noise: only log for the non-default avatar.
+            if (PlayerAvatarSelection.SelectedAvatarId != PlayerAvatarSelection.CapsuleAvatarId)
+            {
+                return;
+            }
+
+            var thirdPerson = FindComponentByFullName(player, "StarterAssets.ThirdPersonController");
+            var starterInputs = FindComponentByFullName(player, "StarterAssets.StarterAssetsInputs");
+            var playerInput = FindComponentByFullName(player, "UnityEngine.InputSystem.PlayerInput");
+
+            var actionMapName = GetStringProperty(playerInput, "currentActionMap", "name");
+            var controlScheme = GetStringProperty(playerInput, "currentControlScheme", null);
+
+            Debug.Log(
+                $"PlayerAvatarSetup[{mode}]: name='{player.name}' active={player.activeInHierarchy} timeScale={Time.timeScale} " +
+                $"ThirdPerson={(thirdPerson != null ? ((Behaviour)thirdPerson).enabled.ToString() : "null")} " +
+                $"StarterInputs={(starterInputs != null ? ((Behaviour)starterInputs).enabled.ToString() : "null")} " +
+                $"PlayerInput={(playerInput != null ? ((Behaviour)playerInput).enabled.ToString() : "null")} " +
+                $"actionMap='{actionMapName}' scheme='{controlScheme}'",
+                player);
+        }
+
+        private static string GetStringProperty(Component component, string propertyName, string nestedPropertyName)
+        {
+            if (component == null)
+            {
+                return null;
+            }
+
+            var type = component.GetType();
+            var prop = type.GetProperty(propertyName);
+            if (prop == null)
+            {
+                return null;
+            }
+
+            var value = prop.GetValue(component);
+            if (value == null)
+            {
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(nestedPropertyName))
+            {
+                return value as string ?? value.ToString();
+            }
+
+            var nested = value.GetType().GetProperty(nestedPropertyName);
+            return nested?.GetValue(value) as string;
+        }
+
+        private static Component FindComponentByFullName(GameObject go, string fullName)
+        {
+            foreach (var component in go.GetComponents<Component>())
+            {
+                if (component != null && component.GetType().FullName == fullName)
+                {
+                    return component;
+                }
+            }
+
+            return null;
         }
 
         private static Gradient BuildGradient(Color startColor, Color endColor)

@@ -4,6 +4,9 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -251,22 +254,33 @@ namespace LightChasePrototype.UI
 
         private void Update()
         {
-            if (InstructionsVisible && Input.GetKeyDown(KeyCode.Escape))
+            if (InstructionsVisible && WasCancelPressedThisFrame())
             {
                 HideInstructions();
                 return;
             }
 
-            if (LevelSelectionVisible && Input.GetKeyDown(KeyCode.Escape))
+            if (LevelSelectionVisible && WasCancelPressedThisFrame())
             {
                 HideLevelSelection();
                 return;
             }
 
-            if (AvatarSelectionVisible && Input.GetKeyDown(KeyCode.Escape))
+            if (AvatarSelectionVisible && WasCancelPressedThisFrame())
             {
                 HideAvatarSelection();
             }
+        }
+
+        private static bool WasCancelPressedThisFrame()
+        {
+#if ENABLE_INPUT_SYSTEM
+            return Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame;
+#else
+            // This project runs with the new Input System. Do not fall back to legacy Input here,
+            // because it throws InvalidOperationException when Active Input Handling is set to Input System only.
+            return false;
+#endif
         }
 
         public void PlayGame()
@@ -442,6 +456,8 @@ namespace LightChasePrototype.UI
             HideDefeat();
             HideVictory();
             HideMainActions();
+            // Re-resolve inputs after avatar swaps (a newly instantiated player may have a new StarterAssetsInputs).
+            _starterAssetsInputs = null;
 
             if (menuCanvasGroup != null)
             {
@@ -1141,7 +1157,7 @@ namespace LightChasePrototype.UI
             humanoButton.name = "HumanoButton";
             humanoButton.GetComponent<RectTransform>().sizeDelta = new Vector2(210f, 64f);
 
-            var capsulaButton = CreateMenuButton(buttonRow.transform, "Capsula", new Color(0.16f, 0.24f, 0.38f), null);
+            var capsulaButton = CreateMenuButton(buttonRow.transform, "Andres", new Color(0.16f, 0.24f, 0.38f), null);
             capsulaButton.name = "CapsulaButton";
             capsulaButton.GetComponent<RectTransform>().sizeDelta = new Vector2(210f, 64f);
 
