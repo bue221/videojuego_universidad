@@ -174,6 +174,20 @@ namespace LightChasePrototype
             return Session.CanExit();
         }
 
+        // Returns true when the given player GameObject matches the currently-selected
+        // avatar. Derived from ResourcePath (e.g. "PlayerAvatars/PlayerAndres" → "PlayerAndres")
+        // so no Resources.Load is needed — safe to call from Awake.
+        private static bool IsSelectedAvatar(GameObject player)
+        {
+            if (player == null) return false;
+            var option   = PlayerAvatarSelection.GetAvatar(PlayerAvatarSelection.SelectedAvatarId);
+            var resPath  = option.ResourcePath ?? string.Empty;
+            var slash    = resPath.LastIndexOf('/');
+            var expected = slash >= 0 ? resPath.Substring(slash + 1) : resPath;
+            return string.Equals(player.name, expected, System.StringComparison.OrdinalIgnoreCase)
+                || player.name.Contains(expected);
+        }
+
         private void EnsureInitialized()
         {
             if (_initialized)
@@ -182,9 +196,15 @@ namespace LightChasePrototype
             }
 
             var player = UnityEngine.Object.FindAnyObjectByType<PlayerLightState>()?.gameObject;
-            if (player == null)
+
+            // Ensure the player in scene matches the avatar the user selected.
+            // When transitioning between levels the scene always starts with the
+            // default PlayerArmature; without this check it would be used even if
+            // the player had picked a different avatar from the menu.
+            if (player == null || !IsSelectedAvatar(player))
             {
-                player = PlayerAvatarSetup.EnsureSelectedAvatarInScene();
+                player = PlayerAvatarSetup.EnsureSelectedAvatarInScene()
+                    ?? UnityEngine.Object.FindAnyObjectByType<PlayerLightState>()?.gameObject;
             }
 
             _session = GameSessionManager.EnsureExists();
@@ -220,7 +240,13 @@ namespace LightChasePrototype
         {
             if (_playerLightState == null)
             {
+                // Preserve the original spawn position before re-caching — CachePlayerReferences
+                // would overwrite it with the player's current (mid-game) position otherwise.
+                var savedSpawnPos = _playerSpawnPosition;
+                var savedSpawnRot = _playerSpawnRotation;
                 CachePlayerReferences(null);
+                _playerSpawnPosition = savedSpawnPos;
+                _playerSpawnRotation = savedSpawnRot;
             }
 
             _playerLightState?.ResetCollectedProgress();

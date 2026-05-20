@@ -376,9 +376,14 @@ namespace StarterAssets
         {
             if (animationEvent.animatorClipInfo.weight > 0.5f)
             {
-
                 if (AudioFootsteps != null)
                     AudioFootsteps.Play();
+                else if (FootstepAudioClips.Length > 0)
+                    AudioSource.PlayClipAtPoint(
+                        FootstepAudioClips[Random.Range(0, FootstepAudioClips.Length)],
+                        transform.TransformPoint(_controller.center),
+                        FootstepAudioVolume);
+
                 if (AudioFoley != null)
                     AudioFoley.Play();
             }
@@ -390,7 +395,11 @@ namespace StarterAssets
             {
                 if (LandingAudio != null)
                     LandingAudio.Play();
-
+                else if (LandingAudioClip != null)
+                    AudioSource.PlayClipAtPoint(
+                        LandingAudioClip,
+                        transform.TransformPoint(_controller.center),
+                        FootstepAudioVolume);
             }
         }
     }

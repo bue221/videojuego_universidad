@@ -280,9 +280,17 @@ namespace LightChasePrototype
         {
             if (_playerLightState == null || _playerTransform == null)
             {
-                UpdateAnimator(IdleAnimatorSpeed, isChasing: false);
-                UpdatePatrol();
-                return;
+                // Reference lost (e.g. avatar swap) — re-acquire from scene
+                _playerLightState = Object.FindAnyObjectByType<PlayerLightState>();
+                if (_playerLightState != null)
+                    _playerTransform = _playerLightState.transform;
+
+                if (_playerLightState == null || _playerTransform == null)
+                {
+                    UpdateAnimator(IdleAnimatorSpeed, isChasing: false);
+                    UpdatePatrol();
+                    return;
+                }
             }
 
             if (_levelManager != null && (_levelManager.GameOver || _levelManager.LevelCompleted))

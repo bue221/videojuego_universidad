@@ -472,8 +472,48 @@ namespace LightChasePrototype.UI
                 Time.timeScale = 1f;
             }
 
+            // Deselect any focused UI element so the Input System stops routing
+            // navigation events to the UI module and delivers them to PlayerInput instead.
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            if (es != null)
+                es.SetSelectedGameObject(null);
+
+            // If the active control scheme is a gamepad but no gamepad is actually
+            // being used, switch back to keyboard+mouse so WASD/mouse work immediately.
+            ForceKeyboardMouseSchemeIfNoGamepad();
+
             SetCursorForMenu(false);
             MenuVisibilityChanged?.Invoke(false);
+        }
+
+        private static void ForceKeyboardMouseSchemeIfNoGamepad()
+        {
+            var playerInput = UnityEngine.Object.FindAnyObjectByType<UnityEngine.InputSystem.PlayerInput>();
+            if (playerInput == null) return;
+
+            var scheme = playerInput.currentControlScheme;
+            if (string.IsNullOrEmpty(scheme) || scheme == "KeyboardMouse") return;
+
+            // Check if a real gamepad is connected and active
+            bool hasGamepad = false;
+            foreach (var device in UnityEngine.InputSystem.InputSystem.devices)
+            {
+                if (device is UnityEngine.InputSystem.Gamepad && device.enabled)
+                {
+                    hasGamepad = true;
+                    break;
+                }
+            }
+
+            if (!hasGamepad)
+            {
+                var kb = UnityEngine.InputSystem.Keyboard.current;
+                var mouse = UnityEngine.InputSystem.Mouse.current;
+                if (kb != null)
+                    playerInput.SwitchCurrentControlScheme("KeyboardMouse",
+                        mouse != null ? new UnityEngine.InputSystem.InputDevice[] { kb, mouse }
+                                      : new UnityEngine.InputSystem.InputDevice[] { kb });
+            }
         }
 
         public void ShowDefeatOverlay(string title, string message)

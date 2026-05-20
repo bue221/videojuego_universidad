@@ -25,6 +25,45 @@ namespace LightChasePrototype
                 "PlayerAvatars/PlayerAndres")
         };
 
+        /// <summary>
+        /// Returns the combined array of hardcoded Options plus any additional entries registered
+        /// in the PlayerAvatarCatalog that are not already present (matched by Id/avatarId).
+        /// </summary>
+        public static AvatarOption[] GetAllOptions()
+        {
+            var catalog = PlayerAvatarCatalog.Load();
+            if (catalog == null || catalog.Entries.Count == 0)
+            {
+                return Options;
+            }
+
+            var combined = new System.Collections.Generic.List<AvatarOption>(Options);
+            foreach (var entry in catalog.Entries)
+            {
+                if (entry == null)
+                {
+                    continue;
+                }
+
+                var alreadyPresent = false;
+                foreach (var existing in combined)
+                {
+                    if (string.Equals(existing.Id, entry.avatarId, StringComparison.Ordinal))
+                    {
+                        alreadyPresent = true;
+                        break;
+                    }
+                }
+
+                if (!alreadyPresent)
+                {
+                    combined.Add(catalog.ToAvatarOption(entry));
+                }
+            }
+
+            return combined.ToArray();
+        }
+
         public static string SelectedAvatarId
         {
             get
@@ -45,7 +84,7 @@ namespace LightChasePrototype
 
         public static AvatarOption GetAvatar(string avatarId)
         {
-            foreach (var option in Options)
+            foreach (var option in GetAllOptions())
             {
                 if (string.Equals(option.Id, avatarId, StringComparison.Ordinal))
                 {
@@ -86,6 +125,10 @@ namespace LightChasePrototype
             return null;
         }
 
+        // Layer 31 is reserved for isolated avatar preview rendering to avoid
+        // capturing scene objects when using Camera.Render() on a temporary camera.
+        private const int PreviewLayer = 31;
+
         public static Sprite BuildAvatarPreviewSprite(string avatarId, int width = 512, int height = 512)
         {
             var prefab = LoadPrefab(avatarId);
@@ -108,6 +151,8 @@ namespace LightChasePrototype
             instance.transform.localRotation = Quaternion.Euler(0f, 160f, 0f);
             instance.transform.localScale = Vector3.one;
 
+            SetLayerRecursive(previewRoot, PreviewLayer);
+
             var bounds = CalculateBounds(instance);
 
             var cameraObject = new GameObject("PreviewCamera");
@@ -121,6 +166,7 @@ namespace LightChasePrototype
             previewCamera.farClipPlane = 100f;
             previewCamera.allowHDR = false;
             previewCamera.allowMSAA = false;
+            previewCamera.cullingMask = 1 << PreviewLayer;
 
             var fillLightObject = new GameObject("PreviewFillLight");
             fillLightObject.hideFlags = HideFlags.HideAndDontSave;
@@ -169,7 +215,7 @@ namespace LightChasePrototype
 
         public static bool IsValidAvatarId(string avatarId)
         {
-            foreach (var option in Options)
+            foreach (var option in GetAllOptions())
             {
                 if (string.Equals(option.Id, avatarId, StringComparison.Ordinal))
                 {
@@ -220,6 +266,15 @@ namespace LightChasePrototype
             var distance = Mathf.Max(2.2f, size * 2f);
             cameraTransform.position = center + new Vector3(size * 0.35f, size * 0.1f, -distance);
             cameraTransform.LookAt(center + Vector3.up * (bounds.size.y * 0.08f));
+        }
+
+        private static void SetLayerRecursive(GameObject obj, int layer)
+        {
+            obj.layer = layer;
+            foreach (Transform child in obj.transform)
+            {
+                SetLayerRecursive(child.gameObject, layer);
+            }
         }
 
         private static Sprite BuildFallbackAvatarPreviewSprite(string avatarId)
