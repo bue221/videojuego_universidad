@@ -1,0 +1,19 @@
+Assets/Project/LightChasePrototype/Scripts/Gameplay/EnemyLightSeeker.cs
+  s_4234d728276a5b::t_0a361f2322c398 193-212
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.12",
+  "base_commit_sha": "d25b4a8b0be57c069728bf0026133381fac12f23",
+  "prompts": {},
+  "sessions": {
+    "s_4234d728276a5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "46d5376d-ddaa-4222-85a4-9231528da2b8",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    }
+  }
+}
