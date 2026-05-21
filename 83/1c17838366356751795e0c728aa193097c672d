@@ -1,0 +1,25 @@
+Assets/Project/LightChasePrototype/Scripts/Gameplay/StarPickup.cs
+  s_4234d728276a5b::t_6ded48c1f97b9e 47-52,55
+  s_4234d728276a5b::t_0b05d8d3b1150a 62-72
+  s_4234d728276a5b::t_01cb4a8c0282f5 26-27
+  s_4234d728276a5b::t_62c746962a2fb7 156
+  s_4234d728276a5b::t_54a0889290a4c0 142,144,146-148,150-151,154-155,158-177,182-191
+Assets/Project/LightChasePrototype/Scripts/Gameplay/PrototypeLevelManager.cs
+  s_4234d728276a5b::t_719d4ad2709bc7 122-127
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.12",
+  "base_commit_sha": "831c17838366356751795e0c728aa193097c672d",
+  "prompts": {},
+  "sessions": {
+    "s_4234d728276a5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "46d5376d-ddaa-4222-85a4-9231528da2b8",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    }
+  }
+}
