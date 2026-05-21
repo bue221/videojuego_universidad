@@ -69,6 +69,16 @@ namespace LightChasePrototype
         private float _glowBaseIntensity;
         private float _bodyGlowBaseIntensity;
         private Vector3 _patrolOrigin;
+
+        // Baseline del baseOffset antes de cualquier calibración — permite que
+        // CalibrateBaseOffsetFromGround use un valor absoluto y sea seguro de llamar
+        // varias veces sin acumular error.
+        private float _baseOffsetBaseline;
+
+        // Los SkinnedMeshRenderer.bounds no están listos en Start (el animator aún no
+        // jugó ningún frame). Recalibramos durante los primeros 3 updates para que
+        // la estimación de feetBelowPivot use bounds reales.
+        private int _groundCalibrationFramesLeft;
         private Vector3 _patrolDestination;
         private bool _hasPatrolTarget;
         private float _patrolIdleTimer;
@@ -78,6 +88,7 @@ namespace LightChasePrototype
         {
             ApplyFallbackBalanceForLegacyScenes();
             _agent = GetComponent<NavMeshAgent>();
+            _baseOffsetBaseline = _agent.baseOffset;
             _agent.speed = baseMoveSpeed;
             _animator = ResolveAnimator();
             _warningAudioSource = GetComponent<AudioSource>();
@@ -147,6 +158,8 @@ namespace LightChasePrototype
             }
 
             CalibrateBaseOffsetFromGround();
+            _groundCalibrationFramesLeft = 3;
+            ApplyLevelSpeedMultiplier();
             _patrolOrigin = transform.position;
         }
 
@@ -186,7 +199,8 @@ namespace LightChasePrototype
             // Como pivot = pies + feetBelowPivot, entonces pivotDeseado = groundY + epsilon + feetBelowPivot.
             var desiredPivotY = groundY + GroundProbeContactEpsilon + feetBelowPivot;
             var deltaY = desiredPivotY - _agent.nextPosition.y;
-            _agent.baseOffset += deltaY;
+            // Absoluto respecto al baseline: seguro de llamar varias veces.
+            _agent.baseOffset = _baseOffsetBaseline + deltaY;
         }
 
         private void ApplyManualOffsetIfRequested()
@@ -196,7 +210,7 @@ namespace LightChasePrototype
                 return;
             }
 
-            _agent.baseOffset += manualPivotToFeetOffset;
+            _agent.baseOffset = _baseOffsetBaseline + manualPivotToFeetOffset;
         }
 
         private bool TryRaycastGroundBelow(out float groundY)
@@ -278,6 +292,12 @@ namespace LightChasePrototype
 
         private void Update()
         {
+            if (_groundCalibrationFramesLeft > 0)
+            {
+                _groundCalibrationFramesLeft--;
+                CalibrateBaseOffsetFromGround();
+            }
+
             if (_playerLightState == null || _playerTransform == null)
             {
                 // Reference lost (e.g. avatar swap) — re-acquire from scene
@@ -711,6 +731,37 @@ namespace LightChasePrototype
             {
                 _damageTimer = damageInterval;
             }
+        }
+
+        // Escala la velocidad base según el nivel activo: +15 % por nivel.
+        // L1=×1.00  L2=×1.15  L3=×1.30  L4=×1.45
+        private void ApplyLevelSpeedMultiplier()
+        {
+            var levelIndex = GetCurrentLevelIndex();
+            if (levelIndex <= 0)
+            {
+                return;
+            }
+
+            var multiplier = 1f + 0.15f * levelIndex;
+            baseMoveSpeed *= multiplier;
+            chaseMoveSpeed *= multiplier;
+            _agent.speed = baseMoveSpeed;
+        }
+
+        private static int GetCurrentLevelIndex()
+        {
+            var sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            for (var i = 0; i < LightChaseLevelCatalog.Options.Length; i++)
+            {
+                if (string.Equals(LightChaseLevelCatalog.Options[i].SceneName, sceneName,
+                        System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return i;
+                }
+            }
+
+            return 0;
         }
 
         private static AudioClip CreateWarningClip()
