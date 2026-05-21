@@ -1,0 +1,27 @@
+"Assets/Project/LightChasePrototype/Resources/PlayerAvatars/Avatar nicolas/model.fbx.meta"
+  s_4234d728276a5b::t_13c16c1cc1b6a5 912
+Assets/Project/LightChasePrototype/Scripts/UI/MainMenuController.cs
+  s_4234d728276a5b::t_15e4f044f4ea79 1214,1220-1223,1225-1230
+  s_4234d728276a5b::t_5950b7f171a11a 185-192
+  s_4234d728276a5b::t_c863eb97518c57 961-993
+  s_4234d728276a5b::t_85edae67e5fcb5 1636-1637
+Assets/Project/LightChasePrototype/Editor/AddAvatarFromFbxTool.cs
+  s_4234d728276a5b::t_eff35080a0ffa3 323-325,335,360-362,372-464
+  s_4234d728276a5b::t_08f675ef65477e 132-136
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.12",
+  "base_commit_sha": "81f801cf5e50ea110c14f986b67602f23810d673",
+  "prompts": {},
+  "sessions": {
+    "s_4234d728276a5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "46d5376d-ddaa-4222-85a4-9231528da2b8",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    }
+  }
+}
