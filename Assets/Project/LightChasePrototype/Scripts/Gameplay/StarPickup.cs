@@ -23,6 +23,8 @@ namespace LightChasePrototype
         private Renderer[] _renderers;
         private Vector3 _startPosition;
         private bool _initialized;
+        private Color _originalLightColor;
+        private float _originalLightRange;
 
         public bool IsCollected { get; private set; }
 
@@ -42,15 +44,32 @@ namespace LightChasePrototype
             _trigger = GetComponent<Collider>();
             _trigger.isTrigger = true;
             _renderers = GetComponentsInChildren<Renderer>(true);
+            if (starLight != null)
+            {
+                _originalLightColor = starLight.color;
+                _originalLightRange = starLight.range;
+            }
+
             RegisteredPickups.Add(this);
             SetCollectedState(false);
-            ApplyCursedVisual();
+            RefreshCursedVisual();
             _initialized = true;
         }
 
         public void ConfigureLight(Light assignedLight)
         {
             starLight = assignedLight;
+            if (starLight != null)
+            {
+                _originalLightColor = starLight.color;
+                _originalLightRange = starLight.range;
+            }
+        }
+
+        public void SetCursed(bool cursed)
+        {
+            isCursed = cursed;
+            RefreshCursedVisual();
         }
 
         private void OnDestroy()
@@ -120,23 +139,56 @@ namespace LightChasePrototype
         {
             foreach (var pickup in RegisteredPickups)
             {
-                if (pickup != null)
+                if (pickup == null)
                 {
-                    pickup.ResetPickup();
+                    continue;
                 }
+
+                pickup.SetCursed(false);
+                pickup.ResetPickup();
             }
+
+            AssignRandomCursedStar();
         }
 
-        private void ApplyCursedVisual()
+        // Elige una estrella aleatoria y la maldice. Se llama en cada reset de nivel
+        // para que el jugador no sepa de antemano cuál es la estrella peligrosa.
+        public static void AssignRandomCursedStar()
         {
-            if (!isCursed || starLight == null)
+            var candidates = new List<StarPickup>();
+            foreach (var p in RegisteredPickups)
+            {
+                if (p != null && !p.IsCollected)
+                {
+                    candidates.Add(p);
+                }
+            }
+
+            if (candidates.Count == 0)
             {
                 return;
             }
 
-            starLight.color = new Color(1f, 0.18f, 0.08f);
-            starLight.intensity = 1.4f;
-            starLight.range *= 1.4f;
+            candidates[Random.Range(0, candidates.Count)].SetCursed(true);
+        }
+
+        private void RefreshCursedVisual()
+        {
+            if (starLight == null)
+            {
+                return;
+            }
+
+            if (isCursed)
+            {
+                starLight.color = new Color(1f, 0.18f, 0.08f);
+                starLight.range = _originalLightRange * 1.4f;
+            }
+            else
+            {
+                starLight.color = _originalLightColor;
+                starLight.range = _originalLightRange;
+            }
         }
 
         private void SetCollectedState(bool collected)

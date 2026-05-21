@@ -119,6 +119,12 @@ namespace LightChasePrototype
             EnsureInitialized();
         }
 
+        // Start corre después de todos los Awake — las estrellas ya están registradas.
+        private void Start()
+        {
+            StarPickup.AssignRandomCursedStar();
+        }
+
         private void Update()
         {
             Tick(Time.deltaTime);
