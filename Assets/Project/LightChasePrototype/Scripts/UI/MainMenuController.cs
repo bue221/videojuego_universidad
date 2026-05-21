@@ -113,28 +113,28 @@ namespace LightChasePrototype.UI
 
             var menuGroup = canvasObject.AddComponent<CanvasGroup>();
 
-            var root = CreatePanel("Root", canvasObject.transform, new Color(0.01f, 0.02f, 0.05f, 0.92f));
+            var root = CreatePanel("Root", canvasObject.transform, new Color(0.039f, 0.020f, 0.008f, 0.96f));
             Stretch(root.GetComponent<RectTransform>());
 
-            var glowObject = CreatePanel("Glow", root.transform, new Color(0.18f, 0.35f, 0.6f, 0.16f));
+            var glowObject = CreatePanel("Glow", root.transform, new Color(1.0f, 0.420f, 0.0f, 0.14f));
             SetAnchoredRect(glowObject.GetComponent<RectTransform>(), new Vector2(0.5f, 0.58f), new Vector2(1100f, 520f));
 
-            var bannerObject = CreatePanel("InstitutionBanner", root.transform, new Color(0.04f, 0.08f, 0.16f, 0.82f));
+            var bannerObject = CreatePanel("InstitutionBanner", root.transform, new Color(0.06f, 0.03f, 0.01f, 0.92f));
             SetAnchoredRect(bannerObject.GetComponent<RectTransform>(), new Vector2(0.5f, 0.92f), new Vector2(1100f, 100f));
 
-            CreateStyledText("UniversityTitle", bannerObject.transform, "UNIVERSIDAD CENTRAL", 32, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.86f, 0.94f, 1f));
+            CreateStyledText("UniversityTitle", bannerObject.transform, "UNIVERSIDAD CENTRAL", 32, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.878f, 0.698f));
             SetAnchoredRect(bannerObject.transform.Find("UniversityTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.62f), new Vector2(960f, 44f));
 
-            CreateStyledText("CourseTitle", bannerObject.transform, "MODELADO 3D Y VIDEOJUEGOS 2026", 22, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.72f, 0.86f, 1f));
+            CreateStyledText("CourseTitle", bannerObject.transform, "MODELADO 3D Y VIDEOJUEGOS 2026", 22, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.78f, 0.58f, 0.38f));
             SetAnchoredRect(bannerObject.transform.Find("CourseTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.28f), new Vector2(960f, 34f));
 
-            var gameTitleObject = CreateStyledTextWithObject("GameTitle", root.transform, "CORRE CORRE QUE TE ATRAPO", 48, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.94f, 0.72f));
+            var gameTitleObject = CreateStyledTextWithObject("GameTitle", root.transform, "CORRE CORRE QUE TE ATRAPO", 48, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.878f, 0.698f));
             SetAnchoredRect(gameTitleObject.GetComponent<RectTransform>(), new Vector2(0.5f, 0.76f), new Vector2(1100f, 70f));
 
-            var subtitleObject = CreateStyledTextWithObject("Subtitle", root.transform, "Modelado 3D y videojuegos", 22, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(0.78f, 0.86f, 0.96f));
+            var subtitleObject = CreateStyledTextWithObject("Subtitle", root.transform, "Modelado 3D y videojuegos", 22, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(1f, 0.72f, 0.42f));
             SetAnchoredRect(subtitleObject.GetComponent<RectTransform>(), new Vector2(0.5f, 0.67f), new Vector2(1000f, 38f));
 
-            var creditsFooterObject = CreateStyledTextWithObject("CreditsFooter", root.transform, "Hecho por Andres Plaza y Nicolas Fonseca", 20, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(0.78f, 0.86f, 0.96f));
+            var creditsFooterObject = CreateStyledTextWithObject("CreditsFooter", root.transform, "Hecho por Andres Plaza y Nicolas Fonseca", 20, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(0.78f, 0.58f, 0.38f));
             SetAnchoredRect(creditsFooterObject.GetComponent<RectTransform>(), new Vector2(0.5f, 0.04f), new Vector2(1200f, 32f));
 
             var levelSection = CreateLevelSelectionPanel(root.transform);
@@ -203,9 +203,9 @@ namespace LightChasePrototype.UI
             victorySection.transform.Find("VictoryButtonRow/VictoryMenuButton").GetComponent<Button>().onClick.AddListener(controller.ReturnToMainMenu);
 
             instructions.transform.Find("CloseButton").GetComponent<Button>().onClick.AddListener(controller.HideInstructions);
-            CreateMenuButton(buttonStack.transform, "Jugar", new Color(0.12f, 0.45f, 0.75f), controller.PlayGame);
-            CreateMenuButton(buttonStack.transform, "Instrucciones", new Color(0.16f, 0.33f, 0.5f), controller.ShowInstructions);
-            CreateMenuButton(buttonStack.transform, "Salir", new Color(0.28f, 0.16f, 0.24f), controller.QuitGame);
+            CreateMenuButton(buttonStack.transform, "Jugar", new Color(0.20f, 0.10f, 0.02f), controller.PlayGame);
+            CreateMenuButton(buttonStack.transform, "Instrucciones", new Color(0.14f, 0.07f, 0.01f), controller.ShowInstructions);
+            CreateMenuButton(buttonStack.transform, "Salir", new Color(0.20f, 0.03f, 0.03f), controller.QuitGame);
 
             controller.RefreshAvatarSelectionUi();
             controller.ShowMenu();
@@ -1045,8 +1045,8 @@ namespace LightChasePrototype.UI
                 var colors = binding.Button.colors;
                 var isSelected = binding.AvatarId == selectedAvatar.Id;
                 var baseColor = isSelected
-                    ? new Color(0.82f, 0.64f, 0.2f, 1f)
-                    : new Color(0.16f, 0.24f, 0.38f, 1f);
+                    ? new Color(1f, 0.42f, 0f, 1f)
+                    : new Color(0.15f, 0.075f, 0.015f, 1f);
 
                 colors.normalColor = baseColor;
                 colors.highlightedColor = baseColor * 1.1f;
@@ -1090,8 +1090,8 @@ namespace LightChasePrototype.UI
                 var colors = binding.Button.colors;
                 var isSelected = binding.LevelId == selectedLevel.Id;
                 var baseColor = isSelected
-                    ? new Color(0.76f, 0.56f, 0.18f, 1f)
-                    : new Color(0.1f, 0.2f, 0.32f, 1f);
+                    ? new Color(1f, 0.42f, 0f, 1f)
+                    : new Color(0.14f, 0.07f, 0.01f, 1f);
 
                 colors.normalColor = baseColor;
                 colors.highlightedColor = baseColor * 1.1f;
@@ -1178,7 +1178,7 @@ namespace LightChasePrototype.UI
 
         private static GameObject CreateAvatarSelectionPanel(Transform parent)
         {
-            var panel = CreatePanel("AvatarSelectionPanel", parent, new Color(0.03f, 0.06f, 0.12f, 0.92f));
+            var panel = CreatePanel("AvatarSelectionPanel", parent, new Color(0.055f, 0.028f, 0.008f, 0.96f));
             SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(1000f, 440f));
 
             CreateStyledText("AvatarTitle", panel.transform, "ELIGE TU AVATAR", 32, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.95f, 0.72f));
@@ -1188,7 +1188,7 @@ namespace LightChasePrototype.UI
             titleRect.sizeDelta = new Vector2(520f, 44f);
             titleRect.anchoredPosition = Vector2.zero;
 
-            var previewFrame = CreatePanel("AvatarPreviewFrame", panel.transform, new Color(0.06f, 0.1f, 0.18f, 0.92f));
+            var previewFrame = CreatePanel("AvatarPreviewFrame", panel.transform, new Color(0.08f, 0.04f, 0.01f, 0.96f));
             SetAnchoredRect(previewFrame.GetComponent<RectTransform>(), new Vector2(0.24f, 0.48f), new Vector2(240f, 240f));
 
             var previewImageObject = new GameObject("AvatarPreview", typeof(RectTransform), typeof(Image));
@@ -1224,7 +1224,7 @@ namespace LightChasePrototype.UI
 
             foreach (var option in avatarOptions)
             {
-                var btn = CreateMenuButton(buttonRow.transform, option.DisplayName, new Color(0.16f, 0.24f, 0.38f), null);
+                var btn = CreateMenuButton(buttonRow.transform, option.DisplayName, new Color(0.15f, 0.075f, 0.015f), null);
                 btn.name = AvatarButtonName(option.Id);
                 btn.GetComponent<RectTransform>().sizeDelta = new Vector2(btnWidth, 64f);
             }
@@ -1251,11 +1251,11 @@ namespace LightChasePrototype.UI
             actionLayout.childForceExpandWidth = false;
             actionLayout.childForceExpandHeight = false;
 
-            var confirmButton = CreateMenuButton(actionRow.transform, "Comenzar", new Color(0.12f, 0.45f, 0.75f), null);
+            var confirmButton = CreateMenuButton(actionRow.transform, "Comenzar", new Color(0.20f, 0.10f, 0.02f), null);
             confirmButton.name = "ConfirmAvatarButton";
             confirmButton.GetComponent<RectTransform>().sizeDelta = new Vector2(240f, 60f);
 
-            var backButton = CreateMenuButton(actionRow.transform, "Volver", new Color(0.2f, 0.24f, 0.3f), null);
+            var backButton = CreateMenuButton(actionRow.transform, "Volver", new Color(0.10f, 0.05f, 0.01f), null);
             backButton.name = "BackAvatarButton";
             backButton.GetComponent<RectTransform>().sizeDelta = new Vector2(180f, 60f);
 
@@ -1266,7 +1266,7 @@ namespace LightChasePrototype.UI
 
         private static GameObject CreateLevelSelectionPanel(Transform parent)
         {
-            var panel = CreatePanel("LevelSelectionPanel", parent, new Color(0.03f, 0.06f, 0.12f, 0.92f));
+            var panel = CreatePanel("LevelSelectionPanel", parent, new Color(0.055f, 0.028f, 0.008f, 0.96f));
             SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(1000f, 340f));
 
             CreateStyledText("LevelTitle", panel.transform, "ELIGE LA RUTA", 32, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.95f, 0.72f));
@@ -1287,19 +1287,19 @@ namespace LightChasePrototype.UI
             rowLayout.childForceExpandWidth = false;
             rowLayout.childForceExpandHeight = false;
 
-            var nivel1Button = CreateMenuButton(levelButtonRow.transform, "Nivel 1", new Color(0.1f, 0.2f, 0.32f), null);
+            var nivel1Button = CreateMenuButton(levelButtonRow.transform, "Nivel 1", new Color(0.14f, 0.07f, 0.01f), null);
             nivel1Button.name = "Nivel1Button";
             nivel1Button.GetComponent<RectTransform>().sizeDelta = new Vector2(220f, 60f);
 
-            var nivel2Button = CreateMenuButton(levelButtonRow.transform, "Nivel 2", new Color(0.1f, 0.2f, 0.32f), null);
+            var nivel2Button = CreateMenuButton(levelButtonRow.transform, "Nivel 2", new Color(0.14f, 0.07f, 0.01f), null);
             nivel2Button.name = "Nivel2Button";
             nivel2Button.GetComponent<RectTransform>().sizeDelta = new Vector2(220f, 60f);
 
-            var nivel3Button = CreateMenuButton(levelButtonRow.transform, "Nivel 3", new Color(0.1f, 0.2f, 0.32f), null);
+            var nivel3Button = CreateMenuButton(levelButtonRow.transform, "Nivel 3", new Color(0.14f, 0.07f, 0.01f), null);
             nivel3Button.name = "Nivel3Button";
             nivel3Button.GetComponent<RectTransform>().sizeDelta = new Vector2(220f, 60f);
 
-            var nivel4Button = CreateMenuButton(levelButtonRow.transform, "Nivel 4", new Color(0.1f, 0.2f, 0.32f), null);
+            var nivel4Button = CreateMenuButton(levelButtonRow.transform, "Nivel 4", new Color(0.14f, 0.07f, 0.01f), null);
             nivel4Button.name = "Nivel4Button";
             nivel4Button.GetComponent<RectTransform>().sizeDelta = new Vector2(220f, 60f);
 
@@ -1321,11 +1321,11 @@ namespace LightChasePrototype.UI
             actionLayout.childForceExpandWidth = false;
             actionLayout.childForceExpandHeight = false;
 
-            var confirmButton = CreateMenuButton(actionRow.transform, "Continuar", new Color(0.12f, 0.45f, 0.75f), null);
+            var confirmButton = CreateMenuButton(actionRow.transform, "Continuar", new Color(0.20f, 0.10f, 0.02f), null);
             confirmButton.name = "ConfirmLevelButton";
             confirmButton.GetComponent<RectTransform>().sizeDelta = new Vector2(240f, 60f);
 
-            var backButton = CreateMenuButton(actionRow.transform, "Volver", new Color(0.2f, 0.24f, 0.3f), null);
+            var backButton = CreateMenuButton(actionRow.transform, "Volver", new Color(0.10f, 0.05f, 0.01f), null);
             backButton.name = "BackLevelButton";
             backButton.GetComponent<RectTransform>().sizeDelta = new Vector2(180f, 60f);
 
@@ -1335,13 +1335,13 @@ namespace LightChasePrototype.UI
 
         private static GameObject CreateDefeatPanel(Transform parent)
         {
-            var panel = CreatePanel("DefeatPanel", parent, new Color(0.02f, 0.04f, 0.08f, 0.96f));
+            var panel = CreatePanel("DefeatPanel", parent, new Color(0.04f, 0.015f, 0.005f, 0.97f));
             SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(900f, 340f));
 
-            CreateStyledText("DefeatTitle", panel.transform, "PARTIDA TERMINADA", 36, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.88f, 0.68f));
+            CreateStyledText("DefeatTitle", panel.transform, "PARTIDA TERMINADA", 36, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.42f, 0f));
             SetAnchoredRect(panel.transform.Find("DefeatTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.78f), new Vector2(640f, 54f));
 
-            CreateStyledText("DefeatMessage", panel.transform, string.Empty, 22, FontStyle.Normal, TextAnchor.MiddleCenter, new Color(0.84f, 0.9f, 1f));
+            CreateStyledText("DefeatMessage", panel.transform, string.Empty, 22, FontStyle.Normal, TextAnchor.MiddleCenter, new Color(1f, 0.878f, 0.698f));
             SetAnchoredRect(panel.transform.Find("DefeatMessage").GetComponent<RectTransform>(), new Vector2(0.5f, 0.48f), new Vector2(780f, 100f));
 
             var buttonRow = new GameObject("DefeatButtonRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
@@ -1359,11 +1359,11 @@ namespace LightChasePrototype.UI
             rowLayout.childForceExpandWidth = false;
             rowLayout.childForceExpandHeight = false;
 
-            var retryButton = CreateMenuButton(buttonRow.transform, "Reintentar", new Color(0.12f, 0.45f, 0.75f), null);
+            var retryButton = CreateMenuButton(buttonRow.transform, "Reintentar", new Color(0.20f, 0.10f, 0.02f), null);
             retryButton.name = "RetryButton";
             retryButton.GetComponent<RectTransform>().sizeDelta = new Vector2(240f, 60f);
 
-            var menuButton = CreateMenuButton(buttonRow.transform, "Al menu principal", new Color(0.2f, 0.24f, 0.3f), null);
+            var menuButton = CreateMenuButton(buttonRow.transform, "Al menu principal", new Color(0.10f, 0.05f, 0.01f), null);
             menuButton.name = "MenuButton";
             menuButton.GetComponent<RectTransform>().sizeDelta = new Vector2(270f, 60f);
 
@@ -1373,13 +1373,13 @@ namespace LightChasePrototype.UI
 
         private static GameObject CreateVictoryPanel(Transform parent)
         {
-            var panel = CreatePanel("VictoryPanel", parent, new Color(0.02f, 0.08f, 0.04f, 0.96f));
+            var panel = CreatePanel("VictoryPanel", parent, new Color(0.04f, 0.015f, 0.005f, 0.97f));
             SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(900f, 340f));
 
-            CreateStyledText("VictoryTitle", panel.transform, "GANASTE EL JUEGO", 42, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.78f, 1f, 0.78f));
+            CreateStyledText("VictoryTitle", panel.transform, "GANASTE EL JUEGO", 42, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.42f, 0f));
             SetAnchoredRect(panel.transform.Find("VictoryTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.78f), new Vector2(720f, 60f));
 
-            CreateStyledText("VictoryMessage", panel.transform, string.Empty, 22, FontStyle.Normal, TextAnchor.MiddleCenter, new Color(0.84f, 1f, 0.88f));
+            CreateStyledText("VictoryMessage", panel.transform, string.Empty, 22, FontStyle.Normal, TextAnchor.MiddleCenter, new Color(1f, 0.878f, 0.698f));
             SetAnchoredRect(panel.transform.Find("VictoryMessage").GetComponent<RectTransform>(), new Vector2(0.5f, 0.48f), new Vector2(780f, 100f));
 
             var buttonRow = new GameObject("VictoryButtonRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
@@ -1397,7 +1397,7 @@ namespace LightChasePrototype.UI
             rowLayout.childForceExpandWidth = false;
             rowLayout.childForceExpandHeight = false;
 
-            var menuButton = CreateMenuButton(buttonRow.transform, "Al menu principal", new Color(0.16f, 0.45f, 0.28f), null);
+            var menuButton = CreateMenuButton(buttonRow.transform, "Al menu principal", new Color(0.20f, 0.10f, 0.02f), null);
             menuButton.name = "VictoryMenuButton";
             menuButton.GetComponent<RectTransform>().sizeDelta = new Vector2(320f, 60f);
 
@@ -1407,10 +1407,10 @@ namespace LightChasePrototype.UI
 
         private static GameObject CreateInstructionsPanel(Transform parent)
         {
-            var panel = CreatePanel("InstructionsPanel", parent, new Color(0.01f, 0.02f, 0.05f, 0.97f));
+            var panel = CreatePanel("InstructionsPanel", parent, new Color(0.04f, 0.020f, 0.008f, 0.97f));
             SetAnchoredRect(panel.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(1100f, 680f));
 
-            CreateStyledText("InstructionsTitle", panel.transform, "COMO JUGAR", 38, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.95f, 0.72f));
+            CreateStyledText("InstructionsTitle", panel.transform, "COMO JUGAR", 38, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.42f, 0f));
             SetAnchoredRect(panel.transform.Find("InstructionsTitle").GetComponent<RectTransform>(), new Vector2(0.5f, 0.88f), new Vector2(600f, 56f));
 
             var bodyObject = new GameObject("InstructionsBody", typeof(RectTransform), typeof(Text));
@@ -1436,7 +1436,7 @@ namespace LightChasePrototype.UI
             bodyText.fontSize = 22;
             bodyText.fontStyle = FontStyle.Normal;
             bodyText.alignment = TextAnchor.UpperLeft;
-            bodyText.color = new Color(0.82f, 0.9f, 1f);
+            bodyText.color = new Color(1f, 0.878f, 0.698f);
             bodyText.horizontalOverflow = HorizontalWrapMode.Wrap;
             bodyText.verticalOverflow = VerticalWrapMode.Truncate;
             bodyText.resizeTextForBestFit = true;
@@ -1449,7 +1449,7 @@ namespace LightChasePrototype.UI
             bodyRect.sizeDelta = new Vector2(920f, 420f);
             bodyRect.anchoredPosition = new Vector2(0f, -8f);
 
-            var closeButton = CreateMenuButton(panel.transform, "Cerrar", new Color(0.16f, 0.33f, 0.5f), null);
+            var closeButton = CreateMenuButton(panel.transform, "Cerrar", new Color(0.14f, 0.07f, 0.01f), null);
             closeButton.name = "CloseButton";
             SetAnchoredRect(closeButton.GetComponent<RectTransform>(), new Vector2(0.5f, 0.07f), new Vector2(280f, 60f));
             panel.SetActive(false);
@@ -1468,15 +1468,15 @@ namespace LightChasePrototype.UI
             image.color = color;
 
             var outline = buttonObject.GetComponent<Outline>();
-            outline.effectColor = new Color(1f, 1f, 1f, 0.1f);
+            outline.effectColor = new Color(1f, 0.42f, 0f, 0.55f);
             outline.effectDistance = new Vector2(1.5f, -1.5f);
 
             var button = buttonObject.GetComponent<Button>();
             var colors = button.colors;
             colors.normalColor = color;
-            colors.highlightedColor = color * 1.2f;
-            colors.pressedColor = color * 0.85f;
-            colors.selectedColor = color * 1.1f;
+            colors.highlightedColor = new Color(1.0f, 0.42f, 0.0f, 1.0f);
+            colors.pressedColor = new Color(0.6f, 0.25f, 0.0f, 1.0f);
+            colors.selectedColor = new Color(0.8f, 0.35f, 0.0f, 1.0f);
             colors.disabledColor = new Color(0.3f, 0.3f, 0.3f, 0.8f);
             button.colors = colors;
 

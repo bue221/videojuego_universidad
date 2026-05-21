@@ -16,14 +16,14 @@ namespace LightChasePrototype.UI
         [SerializeField] private Image timerPanel;
         [SerializeField] private Image statusPanel;
 
-        private static readonly Color HudTextColor = new(0.97f, 0.98f, 1f, 1f);
-        private static readonly Color LivesPanelColor = new(0.42f, 0.1f, 0.14f, 0.84f);
-        private static readonly Color ScorePanelColor = new(0.45f, 0.33f, 0.08f, 0.84f);
-        private static readonly Color TimerPanelColor = new(0.08f, 0.23f, 0.4f, 0.84f);
-        private static readonly Color StatusInfoColor = new(0.06f, 0.16f, 0.34f, 0.9f);
-        private static readonly Color StatusWarningColor = new(0.42f, 0.24f, 0.04f, 0.92f);
-        private static readonly Color StatusDangerColor = new(0.42f, 0.08f, 0.12f, 0.94f);
-        private static readonly Color StatusSuccessColor = new(0.06f, 0.32f, 0.16f, 0.92f);
+        private static readonly Color HudTextColor = new(1f, 0.878f, 0.698f, 1f);
+        private static readonly Color LivesPanelColor = new(0.28f, 0.04f, 0.04f, 0.92f);
+        private static readonly Color ScorePanelColor = new(0.22f, 0.09f, 0.01f, 0.92f);
+        private static readonly Color TimerPanelColor = new(0.16f, 0.08f, 0.01f, 0.92f);
+        private static readonly Color StatusInfoColor = new(0.07f, 0.035f, 0.008f, 0.94f);
+        private static readonly Color StatusWarningColor = new(0.30f, 0.12f, 0.01f, 0.94f);
+        private static readonly Color StatusDangerColor = new(0.34f, 0.04f, 0.04f, 0.96f);
+        private static readonly Color StatusSuccessColor = new(0.04f, 0.25f, 0.08f, 0.94f);
         private enum StatusTone
         {
             Info,
@@ -315,11 +315,11 @@ namespace LightChasePrototype.UI
             image.color = color;
 
             var outline = GetOrAddComponent<Outline>(panelObject);
-            outline.effectColor = new Color(1f, 1f, 1f, 0.14f);
+            outline.effectColor = new Color(1f, 0.42f, 0f, 0.50f);
             outline.effectDistance = new Vector2(2f, -2f);
 
             var shadow = GetOrAddComponent<Shadow>(panelObject);
-            shadow.effectColor = new Color(0f, 0f, 0f, 0.35f);
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.55f);
             shadow.effectDistance = new Vector2(0f, -5f);
 
             return image;
@@ -356,7 +356,7 @@ namespace LightChasePrototype.UI
             text.verticalOverflow = VerticalWrapMode.Overflow;
 
             var outline = GetOrAddComponent<Outline>(textObject);
-            outline.effectColor = new Color(0f, 0f, 0f, 0.68f);
+            outline.effectColor = new Color(0f, 0f, 0f, 0.80f);
             outline.effectDistance = new Vector2(2f, -2f);
 
             var shadow = GetOrAddComponent<Shadow>(textObject);
