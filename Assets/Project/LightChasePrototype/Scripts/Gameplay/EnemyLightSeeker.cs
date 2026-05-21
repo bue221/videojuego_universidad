@@ -190,17 +190,26 @@ namespace LightChasePrototype
                 return;
             }
 
-            // pivote a pies: lo aproximamos por bounds porque es la informacion mas
-            // estable disponible sin bakear mesh. Si bounds esta inflado, el usuario
-            // puede afinar con manualPivotToFeetOffset.
-            var feetBelowPivot = EstimateFeetOffsetBelowPivot();
+            // Usamos NavMesh.SamplePosition en lugar de SkinnedMeshRenderer.bounds:
+            // los bounds cambian cada frame con la animacion (los pies se levantan en
+            // el ciclo de caminado), produciendo feetBelowPivot negativo y empujando
+            // el offset en direccion incorrecta. La superficie del NavMesh es estatica.
+            var probeOrigin = new Vector3(
+                transform.position.x,
+                transform.position.y + GroundProbeRayUp,
+                transform.position.z);
 
-            // Queremos: pies del modelo apoyan en groundY + epsilon.
-            // Como pivot = pies + feetBelowPivot, entonces pivotDeseado = groundY + epsilon + feetBelowPivot.
-            var desiredPivotY = groundY + GroundProbeContactEpsilon + feetBelowPivot;
-            var deltaY = desiredPivotY - _agent.nextPosition.y;
-            // Absoluto respecto al baseline: seguro de llamar varias veces.
-            _agent.baseOffset = _baseOffsetBaseline + deltaY;
+            if (!NavMesh.SamplePosition(probeOrigin, out var navHit, GroundProbeRayUp + GroundProbeRayDown, NavMesh.AllAreas))
+            {
+                ApplyManualOffsetIfRequested();
+                return;
+            }
+
+            // El agente visual queda en: navMeshY + baseOffset.
+            // Queremos que eso iguale: groundY + epsilon + manualPivotToFeetOffset.
+            _agent.baseOffset = _baseOffsetBaseline
+                + groundY + GroundProbeContactEpsilon + manualPivotToFeetOffset
+                - navHit.position.y;
         }
 
         private void ApplyManualOffsetIfRequested()
