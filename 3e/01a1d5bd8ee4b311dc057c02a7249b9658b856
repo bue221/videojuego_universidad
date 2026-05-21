@@ -1,0 +1,34 @@
+Assets/Project/LightChasePrototype/Scripts/UI/MainMenuController.cs
+  s_4234d728276a5b::t_2e1c4aa5e592e7 1431-1432
+Assets/Project/LightChasePrototype/Scripts/Gameplay/StarPickup.cs
+  s_4234d728276a5b::t_350c57e77d4f4b 69-70,72,77-79
+  s_4234d728276a5b::t_602f2c9132e07e 47
+  s_4234d728276a5b::t_429808e55d3cc1 103-107
+  s_4234d728276a5b::t_48736f9676ff40 15-19
+  s_4234d728276a5b::t_c4a78ecae27154 130-141
+Assets/Project/LightChasePrototype/Scripts/Gameplay/PlayerLightState.cs
+  s_4234d728276a5b::t_98ef990b55b480 22-27,33-53
+  s_4234d728276a5b::t_574852711ede68 81,83
+Assets/Project/LightChasePrototype/Scripts/UI/GameHudController.cs
+  s_4234d728276a5b::t_c85902ff052815 19-22
+  s_4234d728276a5b::t_76f5cafafd08c3 226-230,251-255,271
+  s_4234d728276a5b::t_b28be3bcb093f8 133-140
+  s_4234d728276a5b::t_dca9330107b67f 36-37
+  s_4234d728276a5b::t_0c5b8ed241b5f3 162-163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.12",
+  "base_commit_sha": "3e01a1d5bd8ee4b311dc057c02a7249b9658b856",
+  "prompts": {},
+  "sessions": {
+    "s_4234d728276a5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "46d5376d-ddaa-4222-85a4-9231528da2b8",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    }
+  }
+}
