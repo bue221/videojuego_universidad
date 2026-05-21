@@ -182,8 +182,14 @@ namespace LightChasePrototype.UI
             controller.gameTitle = gameTitleObject;
             controller.subtitleElement = subtitleObject;
             controller.creditsFooter = creditsFooterObject;
-            controller.RegisterAvatarButton(PlayerAvatarSelection.ArmatureAvatarId, avatarSection.transform.Find("AvatarButtonRow/HumanoButton").GetComponent<Button>());
-            controller.RegisterAvatarButton(PlayerAvatarSelection.CapsuleAvatarId, avatarSection.transform.Find("AvatarButtonRow/CapsulaButton").GetComponent<Button>());
+            foreach (var option in PlayerAvatarSelection.GetAllOptions())
+            {
+                var btn = avatarSection.transform.Find("AvatarButtonRow/" + AvatarButtonName(option.Id))?.GetComponent<Button>();
+                if (btn != null)
+                {
+                    controller.RegisterAvatarButton(option.Id, btn);
+                }
+            }
             controller.RegisterLevelButton(LightChaseLevelCatalog.PrototypeLevelId, levelSection.transform.Find("LevelButtonRow/Nivel1Button").GetComponent<Button>());
             controller.RegisterLevelButton(LightChaseLevelCatalog.NatureLevelId, levelSection.transform.Find("LevelButtonRow/Nivel2Button").GetComponent<Button>());
             controller.RegisterLevelButton(LightChaseLevelCatalog.WaterLevelId, levelSection.transform.Find("LevelButtonRow/Nivel3Button").GetComponent<Button>());
@@ -952,22 +958,41 @@ namespace LightChasePrototype.UI
 
         private bool HasRequiredMenuStructure()
         {
-            return mainActionsPanel != null
-                && levelSelectionPanel != null
-                && levelSelectionPanel.transform.Find("LevelButtonRow/Nivel1Button") != null
-                && levelSelectionPanel.transform.Find("LevelButtonRow/Nivel2Button") != null
-                && levelSelectionPanel.transform.Find("LevelButtonRow/Nivel3Button") != null
-                && levelSelectionPanel.transform.Find("LevelButtonRow/Nivel4Button") != null
-                && levelSelectionPanel.transform.Find("LevelActionRow/ConfirmLevelButton") != null
-                && levelSelectionPanel.transform.Find("LevelActionRow/BackLevelButton") != null
-                && avatarSelectionPanel != null
-                && avatarSelectionPanel.transform.Find("AvatarButtonRow/HumanoButton") != null
-                && avatarSelectionPanel.transform.Find("AvatarButtonRow/CapsulaButton") != null
-                && avatarSelectionPanel.transform.Find("AvatarActionRow/ConfirmAvatarButton") != null
+            if (mainActionsPanel == null || avatarSelectionPanel == null || levelSelectionPanel == null
+                || instructionsPanel == null || victoryPanel == null)
+            {
+                return false;
+            }
+
+            // Verify level buttons
+            if (levelSelectionPanel.transform.Find("LevelButtonRow/Nivel1Button") == null
+                || levelSelectionPanel.transform.Find("LevelButtonRow/Nivel2Button") == null
+                || levelSelectionPanel.transform.Find("LevelButtonRow/Nivel3Button") == null
+                || levelSelectionPanel.transform.Find("LevelButtonRow/Nivel4Button") == null
+                || levelSelectionPanel.transform.Find("LevelActionRow/ConfirmLevelButton") == null
+                || levelSelectionPanel.transform.Find("LevelActionRow/BackLevelButton") == null)
+            {
+                return false;
+            }
+
+            // Verify avatar panel structure (dynamic: check that buttons exist for ALL current options)
+            var avatarButtonRow = avatarSelectionPanel.transform.Find("AvatarButtonRow");
+            if (avatarButtonRow == null || avatarButtonRow.childCount == 0)
+            {
+                return false;
+            }
+
+            foreach (var option in PlayerAvatarSelection.GetAllOptions())
+            {
+                if (avatarButtonRow.Find(AvatarButtonName(option.Id)) == null)
+                {
+                    return false;
+                }
+            }
+
+            return avatarSelectionPanel.transform.Find("AvatarActionRow/ConfirmAvatarButton") != null
                 && avatarSelectionPanel.transform.Find("AvatarActionRow/BackAvatarButton") != null
                 && avatarSelectionPanel.transform.Find("AvatarPreviewFrame/AvatarPreview") != null
-                && instructionsPanel != null
-                && victoryPanel != null
                 && victoryPanel.transform.Find("VictoryButtonRow/VictoryMenuButton") != null;
         }
 
@@ -1182,24 +1207,27 @@ namespace LightChasePrototype.UI
             var rowRect = buttonRow.GetComponent<RectTransform>();
             rowRect.anchorMin = new Vector2(0.68f, 0.66f);
             rowRect.anchorMax = new Vector2(0.68f, 0.66f);
-            rowRect.sizeDelta = new Vector2(460f, 68f);
             rowRect.anchoredPosition = Vector2.zero;
 
             var rowLayout = buttonRow.GetComponent<HorizontalLayoutGroup>();
             rowLayout.childAlignment = TextAnchor.MiddleCenter;
-            rowLayout.spacing = 20f;
+            rowLayout.spacing = 16f;
             rowLayout.childControlWidth = false;
             rowLayout.childControlHeight = false;
             rowLayout.childForceExpandWidth = false;
             rowLayout.childForceExpandHeight = false;
 
-            var humanoButton = CreateMenuButton(buttonRow.transform, "Humano", new Color(0.16f, 0.24f, 0.38f), null);
-            humanoButton.name = "HumanoButton";
-            humanoButton.GetComponent<RectTransform>().sizeDelta = new Vector2(210f, 64f);
+            // Build one button per avatar option (hardcoded + catalog).
+            var avatarOptions = PlayerAvatarSelection.GetAllOptions();
+            var btnWidth = Mathf.Min(210f, (900f - (avatarOptions.Length - 1) * 16f) / avatarOptions.Length);
+            rowRect.sizeDelta = new Vector2(avatarOptions.Length * btnWidth + (avatarOptions.Length - 1) * 16f, 68f);
 
-            var capsulaButton = CreateMenuButton(buttonRow.transform, "Andres", new Color(0.16f, 0.24f, 0.38f), null);
-            capsulaButton.name = "CapsulaButton";
-            capsulaButton.GetComponent<RectTransform>().sizeDelta = new Vector2(210f, 64f);
+            foreach (var option in avatarOptions)
+            {
+                var btn = CreateMenuButton(buttonRow.transform, option.DisplayName, new Color(0.16f, 0.24f, 0.38f), null);
+                btn.name = AvatarButtonName(option.Id);
+                btn.GetComponent<RectTransform>().sizeDelta = new Vector2(btnWidth, 64f);
+            }
 
             CreateStyledText("AvatarDescription", panel.transform, string.Empty, 20, FontStyle.Italic, TextAnchor.MiddleCenter, new Color(0.8f, 0.88f, 0.97f));
             var descriptionRect = panel.transform.Find("AvatarDescription").GetComponent<RectTransform>();
@@ -1605,5 +1633,7 @@ namespace LightChasePrototype.UI
             public string LevelId { get; }
             public Button Button { get; }
         }
+
+        private static string AvatarButtonName(string avatarId) => $"AvatarBtn_{avatarId}";
     }
 }

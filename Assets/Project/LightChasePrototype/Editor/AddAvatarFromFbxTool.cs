@@ -129,7 +129,11 @@ namespace LightChasePrototype.EditorTools
             var fbxDir = Path.GetDirectoryName(fbxPath)?.Replace('\\', '/') ?? "";
             var generatedFolder = fbxDir + "/Generated";
             var generatedMaterialsFolder = generatedFolder + "/Materials";
-            var extractedTexturesFolder = fbxDir + "/ExtractedTextures";
+
+            // Accept ExtractedTextures/, Texturas/, or Textures/ — whichever exists.
+            string[] texFolderCandidates = { fbxDir + "/ExtractedTextures", fbxDir + "/Texturas", fbxDir + "/Textures" };
+            var extractedTexturesFolder = Array.Find(texFolderCandidates, AssetDatabase.IsValidFolder)
+                                          ?? texFolderCandidates[0];
 
             EnsureFolder(generatedFolder);
             EnsureFolder(generatedMaterialsFolder);
@@ -316,8 +320,9 @@ namespace LightChasePrototype.EditorTools
         }
 
         /// <summary>
-        /// Creates one URP/Lit material per mesh name found in the FBX, assigns the first
-        /// matching texture as BaseMap (name-based heuristic). Returns a name->Material map.
+        /// Creates one URP/Lit material per mesh name found in the FBX.
+        /// Assigns BaseMap and BumpMap using per-material prefix matching first,
+        /// then falls back to the first keyword match across all textures.
         /// </summary>
         private static Dictionary<string, Material> BuildMaterialsFromTextures(
             HashSet<string> meshNames,
@@ -327,7 +332,7 @@ namespace LightChasePrototype.EditorTools
         {
             var result = new Dictionary<string, Material>(StringComparer.OrdinalIgnoreCase);
 
-            // Build a quick lookup: texture filename (no ext) -> asset path.
+            // filename (no ext, lowercase) → asset path
             var texByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var tp in texturePaths)
             {
@@ -352,23 +357,9 @@ namespace LightChasePrototype.EditorTools
                     mat.shader = shader;
                 }
 
-                // Try to assign a base color texture by partial name match.
-                foreach (var kvp in texByName)
-                {
-                    if (kvp.Key.IndexOf("base", StringComparison.OrdinalIgnoreCase) >= 0
-                        || kvp.Key.IndexOf("albedo", StringComparison.OrdinalIgnoreCase) >= 0
-                        || kvp.Key.IndexOf("color", StringComparison.OrdinalIgnoreCase) >= 0
-                        || kvp.Key.IndexOf("diffuse", StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(kvp.Value);
-                        if (tex != null)
-                        {
-                            mat.SetTexture("_BaseMap", tex);
-                            mat.SetColor("_BaseColor", Color.white);
-                            break;
-                        }
-                    }
-                }
+                var matKey = ExtractMaterialKey(matName);
+                AssignBaseMap(mat, texByName, matKey);
+                AssignNormalMap(mat, texByName, matKey);
 
                 EditorUtility.SetDirty(mat);
                 result[matName] = mat;
@@ -376,6 +367,101 @@ namespace LightChasePrototype.EditorTools
 
             AssetDatabase.SaveAssets();
             return result;
+        }
+
+        // "avaturn_hair_0_material.001" → "avaturn_hair_0"
+        private static string ExtractMaterialKey(string matName)
+        {
+            var key = matName;
+            var dotIdx = key.LastIndexOf('.');
+            if (dotIdx >= 0 && int.TryParse(key.Substring(dotIdx + 1), out _))
+            {
+                key = key.Substring(0, dotIdx);
+            }
+
+            const string suffix = "_material";
+            if (key.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            {
+                key = key.Substring(0, key.Length - suffix.Length);
+            }
+
+            return key.ToLowerInvariant();
+        }
+
+        private static bool IsBaseColorName(string n) =>
+            n.IndexOf("base", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            n.IndexOf("albedo", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            n.IndexOf("color", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            n.IndexOf("diffuse", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        private static bool IsNormalMapName(string n) =>
+            n.IndexOf("normal", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            n.IndexOf("nrm", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        private static void AssignBaseMap(Material mat, Dictionary<string, string> texByName, string matKey)
+        {
+            // 1st pass: texture name starts with matKey AND is a base-color texture
+            foreach (var kvp in texByName)
+            {
+                if (kvp.Key.StartsWith(matKey, StringComparison.OrdinalIgnoreCase) && IsBaseColorName(kvp.Key))
+                {
+                    var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(kvp.Value);
+                    if (tex != null)
+                    {
+                        mat.SetTexture("_BaseMap", tex);
+                        mat.SetColor("_BaseColor", Color.white);
+                        return;
+                    }
+                }
+            }
+
+            // Fallback: first base-color texture regardless of material name
+            foreach (var kvp in texByName)
+            {
+                if (IsBaseColorName(kvp.Key))
+                {
+                    var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(kvp.Value);
+                    if (tex != null)
+                    {
+                        mat.SetTexture("_BaseMap", tex);
+                        mat.SetColor("_BaseColor", Color.white);
+                        return;
+                    }
+                }
+            }
+        }
+
+        private static void AssignNormalMap(Material mat, Dictionary<string, string> texByName, string matKey)
+        {
+            // 1st pass: texture name starts with matKey AND is a normal map
+            foreach (var kvp in texByName)
+            {
+                if (kvp.Key.StartsWith(matKey, StringComparison.OrdinalIgnoreCase) && IsNormalMapName(kvp.Key))
+                {
+                    var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(kvp.Value);
+                    if (tex != null)
+                    {
+                        mat.SetTexture("_BumpMap", tex);
+                        mat.EnableKeyword("_NORMALMAP");
+                        return;
+                    }
+                }
+            }
+
+            // Fallback: first normal map regardless of material name
+            foreach (var kvp in texByName)
+            {
+                if (IsNormalMapName(kvp.Key))
+                {
+                    var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(kvp.Value);
+                    if (tex != null)
+                    {
+                        mat.SetTexture("_BumpMap", tex);
+                        mat.EnableKeyword("_NORMALMAP");
+                        return;
+                    }
+                }
+            }
         }
 
         private static AudioClip[] CollectFootstepClips()
