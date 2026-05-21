@@ -1,0 +1,65 @@
+Assets/Project/LightChasePrototype/Scripts/UI/GameHudController.cs
+  s_4234d728276a5b::t_8e5223a966e0d7 23
+  s_4234d728276a5b::t_b915153aee69e1 25
+  s_4234d728276a5b::t_1d3503186419d3 20
+  s_4234d728276a5b::t_d706786ee8a05f 22
+  s_4234d728276a5b::t_a029c66cb7100a 19
+  s_4234d728276a5b::t_d155d74c6d885a 26
+  s_4234d728276a5b::t_9a6a4743de75b7 21
+  s_4234d728276a5b::t_443da9c44fa8ab 24
+  s_4234d728276a5b::t_25670796c49bbc 318
+  s_4234d728276a5b::t_27328f4960957c 322
+  s_4234d728276a5b::t_66c617fa13aff0 359
+Assets/Project/LightChasePrototype/Scripts/UI/MainMenuController.cs
+  s_4234d728276a5b::t_bf58b7b59bfa77 1341
+  s_4234d728276a5b::t_c2ea1d22cc4ee5 1376
+  s_4234d728276a5b::t_a21a717482c198 1379
+  s_4234d728276a5b::t_f4f171744aa6e5 1093-1094
+  s_4234d728276a5b::t_330dc6fffc2bd9 1324
+  s_4234d728276a5b::t_40da0a03c27b04 1290,1294,1298,1302
+  s_4234d728276a5b::t_e87aba0f9a56fc 1181
+  s_4234d728276a5b::t_64615983cfcb7f 1344
+  s_4234d728276a5b::t_b60e36672e67a0 119
+  s_4234d728276a5b::t_2d9a8e7369f2e3 1366
+  s_4234d728276a5b::t_2b7da496a62609 1382
+  s_4234d728276a5b::t_0a26ff2e7a6b51 125
+  s_4234d728276a5b::t_a832c8fbf38d41 116
+  s_4234d728276a5b::t_7b06cce8006cc6 137
+  s_4234d728276a5b::t_0963949fb92923 1362
+  s_4234d728276a5b::t_06d7853bae1b83 206-208
+  s_4234d728276a5b::t_6a12bacc481baa 1258
+  s_4234d728276a5b::t_618ffbb3fbc0b9 1191
+  s_4234d728276a5b::t_9054e4b5fa0cb5 1227
+  s_4234d728276a5b::t_f59066bdd15281 1471
+  s_4234d728276a5b::t_d96a2fb61441de 1048-1049
+  s_4234d728276a5b::t_6da2b1a6ee457b 1410
+  s_4234d728276a5b::t_1230606defc604 1477-1479
+  s_4234d728276a5b::t_9582c1d0310c9a 1328
+  s_4234d728276a5b::t_77104a241cf578 134
+  s_4234d728276a5b::t_4f4919a24fc48e 122
+  s_4234d728276a5b::t_5f80375fccb3c2 1254
+  s_4234d728276a5b::t_f6e2c0a341d0f6 128
+  s_4234d728276a5b::t_3f792c83948d79 1269
+  s_4234d728276a5b::t_a2f5a3c3dbf5c7 131
+  s_4234d728276a5b::t_bf21bbc206e0fd 1413
+  s_4234d728276a5b::t_0a92deb3bdd193 1452
+  s_4234d728276a5b::t_af8ec52b8150e0 1400
+  s_4234d728276a5b::t_4c42cc68eb4ee8 1439
+  s_4234d728276a5b::t_3116ced8d0b93f 1338
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.12",
+  "base_commit_sha": "494b3838a0ba8b294205430bf149040960bc234a",
+  "prompts": {},
+  "sessions": {
+    "s_4234d728276a5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "46d5376d-ddaa-4222-85a4-9231528da2b8",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "cplaza_meli <camilo.plaza@mercadolibre.com.co>"
+    }
+  }
+}
