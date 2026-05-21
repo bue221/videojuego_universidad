@@ -12,6 +12,11 @@ namespace LightChasePrototype
         [SerializeField] private float bobSpeed = 2f;
         [SerializeField] private Light starLight;
 
+        [Header("Cursed Star")]
+        [SerializeField] private bool isCursed;
+        [SerializeField] private float cursedBrightnessMultiplier = 2f;
+        [SerializeField] private float cursedDuration = 15f;
+
         private static readonly HashSet<StarPickup> RegisteredPickups = new();
 
         private Collider _trigger;
@@ -39,6 +44,7 @@ namespace LightChasePrototype
             _renderers = GetComponentsInChildren<Renderer>(true);
             RegisteredPickups.Add(this);
             SetCollectedState(false);
+            ApplyCursedVisual();
             _initialized = true;
         }
 
@@ -60,14 +66,17 @@ namespace LightChasePrototype
                 return;
             }
 
-            transform.Rotate(Vector3.up, rotationSpeed * Time.deltaTime, Space.World);
+            var speedMult = isCursed ? 2.2f : 1f;
+            transform.Rotate(Vector3.up, rotationSpeed * speedMult * Time.deltaTime, Space.World);
 
-            var bobOffset = Mathf.Sin(Time.time * bobSpeed) * bobHeight;
+            var bobOffset = Mathf.Sin(Time.time * bobSpeed * speedMult) * bobHeight;
             transform.position = _startPosition + (Vector3.up * bobOffset);
 
             if (starLight != null)
             {
-                starLight.intensity = 0.8f + (Mathf.Sin(Time.time * (bobSpeed * 1.5f)) * 0.15f);
+                starLight.intensity = isCursed
+                    ? 1.4f + (Mathf.Sin(Time.time * bobSpeed * 3f) * 0.5f)
+                    : 0.8f + (Mathf.Sin(Time.time * (bobSpeed * 1.5f)) * 0.15f);
             }
         }
 
@@ -91,6 +100,11 @@ namespace LightChasePrototype
             }
 
             playerLightState.CollectStar(starValue);
+            if (isCursed)
+            {
+                playerLightState.ApplyCursedBoost(cursedBrightnessMultiplier, cursedDuration);
+            }
+
             levelManager?.RegisterStarCollected(starValue);
             SetCollectedState(true);
         }
@@ -111,6 +125,18 @@ namespace LightChasePrototype
                     pickup.ResetPickup();
                 }
             }
+        }
+
+        private void ApplyCursedVisual()
+        {
+            if (!isCursed || starLight == null)
+            {
+                return;
+            }
+
+            starLight.color = new Color(1f, 0.18f, 0.08f);
+            starLight.intensity = 1.4f;
+            starLight.range *= 1.4f;
         }
 
         private void SetCollectedState(bool collected)

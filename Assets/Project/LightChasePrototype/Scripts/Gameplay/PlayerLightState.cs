@@ -19,8 +19,38 @@ namespace LightChasePrototype
         public float CurrentBrightness { get; private set; }
         public float NormalizedBrightness => LightChaseMath.NormalizeBrightness(CurrentBrightness, baseBrightness, maximumBrightness);
 
+        public bool IsCursed => _cursedTimeRemaining > 0f;
+        public float CursedTimeRemaining => _cursedTimeRemaining;
+
+        private float _cursedMultiplier = 1f;
+        private float _cursedTimeRemaining;
+
         private void Awake()
         {
+            RecalculateBrightness();
+        }
+
+        private void Update()
+        {
+            if (_cursedTimeRemaining <= 0f)
+            {
+                return;
+            }
+
+            _cursedTimeRemaining -= Time.deltaTime;
+            if (_cursedTimeRemaining <= 0f)
+            {
+                _cursedTimeRemaining = 0f;
+                _cursedMultiplier = 1f;
+            }
+
+            RecalculateBrightness();
+        }
+
+        public void ApplyCursedBoost(float multiplier, float duration)
+        {
+            _cursedMultiplier = Mathf.Max(1f, multiplier);
+            _cursedTimeRemaining = duration;
             RecalculateBrightness();
         }
 
@@ -48,9 +78,9 @@ namespace LightChasePrototype
         private void RecalculateBrightness()
         {
             CurrentBrightness = Mathf.Clamp(
-                baseBrightness + (StarsCollected * brightnessPerStar),
+                (baseBrightness + (StarsCollected * brightnessPerStar)) * _cursedMultiplier,
                 baseBrightness,
-                maximumBrightness);
+                maximumBrightness * Mathf.Max(1f, _cursedMultiplier));
 
             if (glowLight != null)
             {

@@ -1428,6 +1428,8 @@ namespace LightChasePrototype.UI
                 "COMO FUNCIONA EL RIESGO\n" +
                 "Cada estrella aumenta tu brillo, hace mas visible tu rastro y permite que el enemigo te detecte desde mas lejos.\n" +
                 "Recoger rapido te acerca a la meta, pero tambien te expone mas.\n\n" +
+                "ESTRELLA MALDITA\n" +
+                "Una estrella brilla en rojo y gira mas rapido. Recogerla duplica tu brillo durante 15 segundos: el enemigo te detecta desde el doble de distancia. Solo recogela si el perseguidor esta lejos o si ya activaste el portal.\n\n" +
                 "QUE HACE EL ENEMIGO\n" +
                 "El perseguidor reacciona a tu firma de luz. Si estas muy brillante, te encuentra antes, acelera durante la persecucion y te quita vidas al alcanzarte.\n" +
                 "Si oyes o ves que entra en alerta, cambia de ruta o corre al portal si ya esta activo.\n\n" +

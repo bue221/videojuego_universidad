@@ -16,6 +16,10 @@ namespace LightChasePrototype.UI
         [SerializeField] private Image timerPanel;
         [SerializeField] private Image statusPanel;
 
+        private static readonly Color StatusCursedColor = new(0.45f, 0.04f, 0.02f, 0.98f);
+
+        private PlayerLightState _playerLightState;
+
         private static readonly Color HudTextColor = new(1f, 0.878f, 0.698f, 1f);
         private static readonly Color LivesPanelColor = new(0.28f, 0.04f, 0.04f, 0.92f);
         private static readonly Color ScorePanelColor = new(0.22f, 0.09f, 0.01f, 0.92f);
@@ -29,7 +33,8 @@ namespace LightChasePrototype.UI
             Info,
             Warning,
             Danger,
-            Success
+            Success,
+            Cursed
         }
 
         public static GameHudController EnsureHudExists(PrototypeLevelManager levelManager, Transform parent = null)
@@ -125,6 +130,14 @@ namespace LightChasePrototype.UI
             Refresh();
         }
 
+        private void Update()
+        {
+            if (_playerLightState != null && _playerLightState.IsCursed)
+            {
+                Refresh();
+            }
+        }
+
         private void OnDisable()
         {
             if (levelManager != null)
@@ -146,6 +159,8 @@ namespace LightChasePrototype.UI
             }
 
             levelManager = assignedLevelManager;
+            _playerLightState = Object.FindAnyObjectByType<PlayerLightState>();
+
             if (levelManager == null)
             {
                 return;
@@ -208,6 +223,11 @@ namespace LightChasePrototype.UI
                 return "ALERTA ROJA  |  Sin vidas. El perseguidor te atrapo.";
             }
 
+            if (_playerLightState != null && _playerLightState.IsCursed)
+            {
+                return $"ESTRELLA MALDITA  |  Brillo x2 durante {Mathf.CeilToInt(_playerLightState.CursedTimeRemaining)}s — el perseguidor te ve desde el doble de distancia.";
+            }
+
             if (levelManager.ExitUnlocked)
             {
                 return "PORTAL ACTIVO  |  Corre a la salida ahora.";
@@ -228,6 +248,11 @@ namespace LightChasePrototype.UI
                 return StatusTone.Danger;
             }
 
+            if (_playerLightState != null && _playerLightState.IsCursed)
+            {
+                return StatusTone.Cursed;
+            }
+
             if (levelManager.ExitUnlocked)
             {
                 return StatusTone.Warning;
@@ -243,6 +268,7 @@ namespace LightChasePrototype.UI
                 StatusTone.Success => StatusSuccessColor,
                 StatusTone.Warning => StatusWarningColor,
                 StatusTone.Danger => StatusDangerColor,
+                StatusTone.Cursed => StatusCursedColor,
                 _ => StatusInfoColor
             };
         }
