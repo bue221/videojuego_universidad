@@ -128,3 +128,10 @@ InitTestScene*.unity*
 .DS_Store
 # Local Pi runtime state
 .atl/
+
+# MCP-generated screenshots
+/[Aa]ssets/Screenshots/
+/[Aa]ssets/Screenshots.meta
+
+# Unity TestRunner auto-generated performance data
+/[Aa]ssets/Resources/PerformanceTestRun*
